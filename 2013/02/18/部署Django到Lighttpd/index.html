@@ -1,0 +1,320 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>部署Django到Lighttpd | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta property="og:title" content="部署Django到Lighttpd"/>
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content"><article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-02-17T19:09:52.000Z"><a href="/2013/02/18/部署Django到Lighttpd/">2013-02-18</a></time>
+    
+    
+  
+    <h1 class="title">部署Django到Lighttpd</h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="django-fastcgi">Django &amp; FastCGI</h3>
+<h4 id="-">软件包依赖</h4>
+<p>在Django上使用FastCGI需要<code>flup</code>包:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>pip install flup
+</pre></td></tr></table></figure>
+
+<h4 id="-django-server">运行Django server</h4>
+<p>Django 内置有<code>runfcgi</code>命令, 建立一个脚本, 运行Django:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="code"><pre><span class="shebang">#!/bin/sh</span>
+app_path=<span class="string">'/path/to/django-app/'</span>
+p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
+<span class="built_in">cd</span> <span class="string">"<span class="variable">$app_path</span>"</span>
+<span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$p</span> ]; <span class="keyword">then</span>
+    kill $(cat -- <span class="variable">$p</span>)
+    rm <span class="operator">-f</span> -- <span class="variable">$p</span>
+<span class="keyword">fi</span>
+
+<span class="keyword">exec</span> /usr/bin/env \
+    PYTHONPATH=<span class="string">"<span class="variable">$app_path</span>/.."</span> python \
+    manage.py runfcgi \
+    method=threaded \
+    host=<span class="number">127.0</span>.<span class="number">0.1</span> \
+    port=<span class="number">3033</span> \
+    pidfile=<span class="string">"<span class="variable">$p</span>"</span>
+</pre></td></tr></table></figure>
+
+<p>这里使用的TCP方式, 使用127.0.0.1:3033 地址.</p>
+<a id="more"></a>
+
+<h3 id="lighttpd-">lighttpd 配置</h3>
+<p>配置如下:</p>
+<p>File path: <code>/etc/lighttpd/lighttpd.conf</code></p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre>server.modules += ( <span class="string">"mod_fastcgi"</span>, <span class="string">"mod_rewrite"</span> )
+server.<span class="built_in">document</span>-root = <span class="string">"/home/user/public_html"</span>
+fastcgi.server = (
+    <span class="string">"/mysite.fcgi"</span><span class="function"> =&gt;</span> (
+        <span class="string">"main"</span><span class="function"> =&gt;</span> (
+            <span class="string">"host"</span><span class="function"> =&gt;</span> <span class="string">"127.0.0.1"</span>,
+            <span class="string">"port"</span><span class="function"> =&gt;</span> <span class="number">3033</span>,
+            <span class="comment"># Use socket instead of host / port for TCP fastcgi</span>
+            <span class="comment"># "socket" =&gt; "/home/user/mysite.sock",</span>
+            <span class="string">"check-local"</span><span class="function"> =&gt;</span> <span class="string">"disable"</span>,
+        )
+    ),
+)
+
+url.rewrite-once = (
+    <span class="string">"^(/media/.*)$"</span><span class="function"> =&gt;</span> <span class="string">"$1"</span>,
+    <span class="string">"^/favicon\.ico$"</span><span class="function"> =&gt;</span> <span class="string">"/media/favicon.ico"</span>,
+    <span class="string">"^(/.*)$"</span><span class="function"> =&gt;</span> <span class="string">"/mysite.fcgi$1"</span>,
+)
+</pre></td></tr></table></figure>
+
+<p>fastcgi server 配置到先前的127.0.0.1:3033地址.</p>
+<p>后面添加一个<code>url.rewrite-once</code>规制, 可以从定向url.</p>
+<ul>
+<li>/media/.. 和 /favicon.ico 等静态文件, 直接有lighttpd访问</li>
+<li>其他url则交给 /mysite.fcgi, 通过fastcgi, 将请求交给Django</li>
+</ul>
+<p>但是, 这里有个问题, lighttpd 通过FastCGI传递参数给Django, 会在每个path前面加上 /mysite.fcgi, 比如 /home/ 会被改成 /mysite.fcgi/home/, 这个就会导致Django url pattern没有找到, 导致404.</p>
+<p>幸好, Django已经提供了一个<a href="https://docs.djangoproject.com/en/dev/howto/deployment/fastcgi/#forcing-the-url-prefix-to-a-particular-value" target="_blank">解决方案</a>, 在settings.py 里添加<code>FORCE_SCRIPT_NAME = &#39;&#39;</code> 就可以解决这个问题.</p>
+
+    
+  </div>
+  <footer>
+    
+      
+  
+  <div class="categories">
+    <a href="/categories/Tech/">Tech</a>
+  </div>
+
+      
+  
+  <div class="tags">
+    <a href="/tags/django/">django</a>, <a href="/tags/lighttpd/">lighttpd</a>, <a href="/tags/web/">web</a>
+  </div>
+
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+  <div class="ds-thread" data-title="部署Django到Lighttpd">
+  </div>
+</section>
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>java | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content">
+<h2 class="archive-title tag">java</h2>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-12-17T03:22:25.000Z"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">[Android] The Story of MediaPlayer.setDataSource [Part.1]</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>Android <code>MediaPlayer</code> is a big class for all purpose media type playing, including local file and streaming playing.</p>
+<p>The story start from <code>MediaPlayer.setDataSource</code>.</p>
+<h2 id="-android-media-package"><code>android.media</code> package</h2>
+<p><code>android.media</code> package locates in <code>frameworks/base/media</code>, and it&#39;s Java source is <code>java/android/media</code>.</p>
+<p>This package provide various of interface for media playing/recording/decoding etc, including the <code>MediaPlayer</code> we are going to talk about today.</p>
+<h3 id="-mediaplayer-setdatasource-"><code>MediaPlayer.setDataSource()</code></h3>
+<p>I would not talk much about <code>MediaPlayer</code> constrution, the part we are insterested is what happens after calling <code>setDataSource()</code></p>
+<p>From <a href="http://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank">developer.android</a>, MediaPlayer provide 4 types of method reloading for <code>setDataSource</code>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="literal">void</span> setDataSource(<span class="built_in">String</span> path)
+<span class="literal">void</span> setDataSource(Context context, Uri uri, <span class="built_in">Map</span><span class="subst">&lt;</span><span class="built_in">String</span>, <span class="built_in">String</span><span class="subst">&gt;</span> headers)
+<span class="literal">void</span> setDataSource(Context context, Uri uri)
+<span class="literal">void</span> setDataSource(FileDescriptor fd, long offset, long length)
+<span class="literal">void</span> setDataSource(FileDescriptor fd)
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-12-17T01:49:20.000Z"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">[Android] Bypass SSL cert check when connecting to localhost through HTTPS</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>最近需要用HTTPS连接到localhost做一些测试，但是发现一个SSL证书的问题， 用Android的MediaPlayer播放Https内容的时候总是失败在SSL连接握手阶段，应该是localhost证书非法，验证不了，直接导致MediaPlayer拒绝连接。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="label">javax.net.ssl.SSLProtocolException:</span> SSL handshake terminated: ssl=<span class="number">0xef44d200</span>: Failure <span class="keyword">in</span> SSL library, usually a protocol error
+<span class="label">error:</span><span class="number">14094416</span>:SSL routines:SSL3_READ_BYTES:sslv3 alert certificate unknown (external/openssl/ssl/s3_pkt<span class="preprocessor">.c</span>:<span class="number">1286</span> <span class="number">0xef40c640</span>:<span class="number">0x00000003</span>)
+</pre></td></tr></table></figure>
+
+<h3 id="level-of-security">Level of Security</h3>
+<p>对于连接的安全级别，可以分为下列3个级别：</p>
+<ul>
+<li>Level A – no encryption, no verification</li>
+<li>Level B – encryption, no verification</li>
+<li>Level C – encryption and verification</li>
+</ul>
+<p>Level A 就是相当于http连接，没有任何保护；而Level C就相当于https连接，连接加密且验证连接方。</p>
+<p>而对于媒体播放的需求其实更接近于是Level B，只需要传输数据加密，不让别人知道自己看过什么，而对播放源验证不会有那么严格的要求。</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+
+  <nav id="pagination">
+  
+  
+  <div class="clearfix"></div>
+</nav>
+
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

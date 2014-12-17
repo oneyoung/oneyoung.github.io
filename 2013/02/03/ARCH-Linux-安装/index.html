@@ -1,0 +1,444 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>ARCH Linux 安装 | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta property="og:title" content="ARCH Linux 安装"/>
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content"><article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-02-02T18:08:33.000Z"><a href="/2013/02/03/ARCH-Linux-安装/">2013-02-03</a></time>
+    
+    
+  
+    <h1 class="title">ARCH Linux 安装</h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h4 id="-iso-">准备ISO 文件引导</h4>
+<h5 id="-iso-">下载ISO文件</h5>
+<p>我下的是201108 i686版本</p>
+<h5 id="-u-">用U盘启动。</h5>
+<p>因为我用的是multi-boot，不能直接dd，先做一个grub启动菜单</p>
+<pre><code>menuentry &quot;Arch Linux i686&quot; {
+    search --set -f &quot;/archlinux_i686.iso&quot;
+    loopback loop &quot;/archlinux_i686.iso&quot;
+    linux (loop)/arch/boot/i686/vmlinuz archisolabel=archiso
+    initrd (loop)/arch/boot/i686/archiso.img
+}
+</code></pre><blockquote>
+<p> 注意，这里加了 <em>archisolable</em> 选项，会在之后系统安装的时候用到</p>
+</blockquote>
+<p>然后,从U盘启动.系统会提示找不到boot device，这是因为从U盘启动的时候找不到arch iso 安装盘。这时会进入一个shell，可以在这里将ISO 挂载上：</p>
+<pre><code>mkdir /u_disk # create a directory for later U-disk mount
+mount -t vfat /dev/sdb2 /u_disk #check your U-disk, I install multi-boot in the second partition.
+# assigned the ISO to the system
+modprobe loop
+losetup /dev/loop0 /u_disk/archlinux_i686.iso
+ln -s /dev/loop0 /dev/disk/by-label/archiso
+exit
+</code></pre><p>从这之后就进入正常的安装过程了 ^_^</p>
+<a id="more"></a>
+
+<h6 id="install-in-new-iso-">install in new iso.</h6>
+<p>configure network if dhcp failed</p>
+<pre><code>ip link set eth0 up
+ip addr show dev eth0
+ip addr add 192.168.1.100/24 dev eth0
+ip route add default via 192.168.1.1
+</code></pre><p>add dns support</p>
+<pre><code>echo &quot;nameserver 8.8.8.8&quot; &gt; /etc/resolv.conf
+</code></pre><p>format the disk</p>
+<pre><code>mkfs -t ext4 /dev/sda1
+</code></pre><p>choose the fast source</p>
+<pre><code>/etc/pacman.d/mirrorlist
+</code></pre><p>install the base and base-devel</p>
+<pre><code>mount /dev/sda1 /mnt/root/
+pacstrap /mnt base base-devel
+</code></pre><p>install grub</p>
+<pre><code>pacstrap /mnt grub-bios
+pacstrap /mnt syslinux
+</code></pre><p>chroot</p>
+<pre><code>arch-chroot /mnt/root
+</code></pre><p>configure timezone</p>
+<pre><code>ln -s /usr/share/zoneinfo/Asaia/Shanghai /etc/localtime
+# then add time zone to rc.conf &quot;TIMEZONE=&quot;Asia/Shanghai&quot;&quot;
+config the below file
+/etc/fstab
+/etc/locale.gen
+/etc/locale.conf
+=&gt; run: locale-gen
+/etc/mkinitcpio.conf
+=&gt; run: mkinitcpio -p linux
+</code></pre><h4 id="configure">Configure</h4>
+<h5 id="add-usr">add usr</h5>
+<p>建立一个普通帐号，直接使用以前Ubuntu下的home目录：</p>
+<pre><code>useradd -d /home/oneyoung -s /bin/bash oneyoung
+passwd oneyoung
+</code></pre><p>要让帐号拥有sudo权限的话：</p>
+<blockquote>
+<p>make sure you are root</p>
+</blockquote>
+<pre><code>pacman -S sudo
+visudo #the recommended way to edit /etc/sudoers
+</code></pre><h5 id="-x-ati-mobility-2400xt-">安装X和显卡驱动（ATI Mobility 2400XT）：</h5>
+<p>install basic X packages</p>
+<pre><code>sudo pacman -S xorg-server xorg-xinit xorg-utils xorg-server-utils
+</code></pre><p>install ati driver</p>
+<pre><code>sudo pacman -S xf86-video-ati
+</code></pre><h5 id="install-yaourt">install yaourt</h5>
+<p>add archlinuxfr to /etc/pacman.conf</p>
+<pre><code>[archlinuxfr]
+Server = http://repo-fr.archlinuxcn.org/$arch
+</code></pre><p>then install yaourt directly:</p>
+<pre><code>sudo pacman -S yaourt
+</code></pre><h5 id="install-input-method-fcitx-">install input method (fcitx)</h5>
+<p>install the package:</p>
+<pre><code>sudo pacman -Sy fcitx
+</code></pre><p>make sure export the following variables to the environment</p>
+<blockquote>
+<p>better to put this in <em>.initrc</em></p>
+</blockquote>
+<pre><code>export XIM=fcitx
+export XIM_PROGRAM=fcitx
+export XMODIFIERS=&quot;@im=fcitx&quot;
+export GTK_IM_MODULE=xim
+export QT_IM_MODULE=xim
+</code></pre><p>add English input method for <em>word completion</em></p>
+<pre><code>yaourt -S fcitx-en-git
+</code></pre><h5 id="install-awesome-windows-manager">install awesome windows manager</h5>
+<pre><code>sudo pacman -Sy awesome
+</code></pre><p>config the xinitrc</p>
+<pre><code># copy /etc/X11/xinit/xinitrc to ~/.xinitrc
+cp /etc/X11/xinit/xinitrc ~/.xinitrc
+# comment out the xterm 
+# and add awesome to the end of file
+# then just type startx, you can run awesome
+startx
+</code></pre><p>copy awesome config file to home dir</p>
+<pre><code>mkdir -p ~/.config/awesome/
+cp /etc/xdg/awesome/rc.lua ~/.config/awesome/
+</code></pre><h5 id="enable-wireless-support">enable wireless support</h5>
+<p>install <code>net-tools</code>(ifconfig etc), <code>wireless_tools</code>(iwconfig etc.), <code>wpa_supplicant</code>(for WPA encryption)</p>
+<pre><code>sudo pacman -S net-tools wireless_tools wap_supplicant
+</code></pre><p>enable network manager</p>
+<pre><code>sudo pacman -Sy wicd wicd-gtk
+</code></pre><h5 id="enable-comand-not-found-hint">enable &quot;comand not found&quot; hint</h5>
+<p>install <code>pkgtools</code>:</p>
+<pre><code>sudo pacman -Sy pkgtools pkgfile
+</code></pre><p>and set <code>CMD_SEARCH_ENABLE=1</code> in <em>/etc/pkgtools/pkgfile.conf</em>, then:</p>
+<pre><code>sudo pkgfile --update
+source /etc/profile #if you don&#39;t want to logout again
+</code></pre><h5 id="audio-support">audio support</h5>
+<p>install alsa and add the user to audio group</p>
+<pre><code>pacman -S alsa-utils alsa-lib
+gpasswd -a oneyoung audio
+</code></pre><p>add alsa daemo to rc.conf</p>
+<pre><code>DAEMONS=(syslog-ng dbus crond wicd alsa vmwared)
+</code></pre><p>alsaconf配置声卡，生成/etc/asound。state文件。保存以后的音量调节数据：</p>
+<pre><code>根据提示操作，程序会找到你机器上的声卡类型（大多数情况下都会正确地找到）
+</code></pre><p>会在/etc下生成asound。state文件，用来保存以后对音量的调解数据，要不每次开机后会默认给你开静音。</p>
+<p>音量调节：alsamixer</p>
+<pre><code>运行alsamixer，出现图形话界面，使用上下箭头键来调解音量大小，使用左右键来移动到不同的项目。例如：耳麦声音等。在界面上你会发现，只有下面显示为“00”的项目，才可以使用上下键来调节音量。而“MM”标示的却不成,如果想启用这些项目。只需移到“00”处，按下“m”键，皆可激活，再按一次会再禁用。 调节完毕后，按esc键退出，程序会自动保存数据。
+</code></pre><p>测试：</p>
+<pre><code>aplay /usr/share/sounds/alsa/Front-Center.wav
+</code></pre><p>会听到女声说:&quot;Front-Center&quot;,当然你可以一次都测试完：</p>
+<pre><code>aplay /usr/share/sounds/alsa/*.wav
+</code></pre><p>graphy tool for volumecontorl</p>
+<pre><code>pacman -S volumeicon
+</code></pre><h5 id="key-mapping-swap-esc-and-caps_locks-">key mapping: swap <code>Esc</code> and <code>Caps_Locks</code></h5>
+<p>add .Xmodmap file to HOME dir with the below content</p>
+<pre><code>remove Lock = Caps_Lock
+keysym Escape = Caps_Lock
+keysym Caps_Lock = Escape
+add Lock = Caps_Lock
+</code></pre><p>then run below to take effect</p>
+<pre><code>xmodmap ~/.Xmodmap
+</code></pre><h5 id="auto-mount-usb-mass-storage">auto mount USB mass storage</h5>
+<p>install udiskie:</p>
+<pre><code>sudo yaourt -S udiskie #now change to python2-udiskie
+sudo pacman -S consolekit #for permission control
+</code></pre><p>start udiskie daemon:</p>
+<pre><code>exec ck-launch-session awesome
+#then add &quot;os.execute &quot;udiskie &amp;&quot; to rc.lua
+</code></pre><p>polkit config (<em>permission for disk mount</em>):</p>
+<pre><code># file: /etc/polkit-1/localauthority/50-local.d/10-udiskie.pkla
+
+[Local Users]
+Identity=unix-group:storage
+Action=org.freedesktop.udisks*.*
+ResultAny=yes
+ResultInactive=no
+ResultActive=yes
+</code></pre><h5 id="sudo-password-can-t-work">sudo password can&#39;t work</h5>
+<p>solution reinstall packages: </p>
+<pre><code>pambase pam
+</code></pre><h5 id="install-thunder-download-tool">install thunder download tool</h5>
+<pre><code>sudo yaourt -S wine-thunder
+</code></pre><h5 id="install-login-manager">install login manager</h5>
+<pre><code>pacman -S slim
+</code></pre><p>edit /etc/slim.conf</p>
+<pre><code>&quot;session awesome&quot;
+</code></pre><p>add slim to login session</p>
+<ul>
+<li>open file <code>/etc/inittab</code></li>
+<li>change line <code>id:3:initdefault:</code> to <code>id:5:initdefault:</code></li>
+<li>find the line <code>x:5:respawen...</code> and replace the cmd with <code>/usr/bin/slim &gt; /dev/null 2&gt;&amp;1</code></li>
+</ul>
+<h5 id="install-vmplayer">install vmplayer</h5>
+<p>download vmplayer from <a href="http://www.vmware.com/go/downloadplayer/" target="_blank">offical website</a></p>
+<p>then:
+    chmod +x VMware-<edition>-<version>.<release>.<architecture>.bundle
+    ./VMware-<edition>-<version>.<release>.<architecture>.bundle --console</p>
+<p>start <code>vmwared</code> in <code>/etc/rc.conf</code></p>
+<p>install hal for vmwared </p>
+<pre><code>yaourt -S hal
+</code></pre><p>USB support:</p>
+<pre><code>./VMware-&lt;edition&gt;-&lt;version&gt;.&lt;release&gt;.&lt;architecture&gt;.bundle --console --extract /tmp
+cp /tmp/vmware-usbarbitrator/etc/init.d/vmware-USBArbitrator /etc/rc.d/
+</code></pre><h5 id="install-32bit-support-for-arch_64-">install 32bit support for <code>ARCH_64</code></h5>
+<p>uncomment the line in <code>/etc/pacman.conf</code></p>
+<pre><code>[multilib]
+SigLevel = PackageRequired
+Include = /etc/pacman.d/mirrorlist
+</code></pre><p>install the packages</p>
+<pre><code>sudo pacman -Sy lib32-zlib lib32-ncurses lib32-readline gcc-libs-multilib gcc-multilib lib32-gcc-libs
+</code></pre><h5 id="font-config">font config</h5>
+<pre><code>yaourt -Sy cairo-ubuntu fontconfig-lcd fontconfig-ubuntu freetype2-ubuntu libxft-ubuntu
+</code></pre><h5 id="install-kupfer-to-replace-gnome-do">install kupfer to replace gnome-do</h5>
+<pre><code>yaourt -S kupfer
+</code></pre><h5 id="android-build-support">android build support</h5>
+<p>!!!the packages in ARCH Linux is too new!!!</p>
+<ul>
+<li>subversion -- 1.6 (addition: sudo ln -s /usr/lib/libdb.so /usr/lib/libdb-5.2.so)
+  mali use subversion in its makefile</li>
+<li>make -- 3.81</li>
+<li>gcc -- 4.4<ol>
+<li>install gcc44 from aur,</li>
+<li>modify the PKGBUILD, remove the option --disable-multilib, add --with-multilib-list=m32,m64</li>
+<li>install package with pacman -Uf gcc.pag to ignore file conflic in /usr/lib32</li>
+<li>better to reinstall gcc-multilib to resotre file conflict</li>
+<li>make link: ln -s /usr/lib32 /lib32 to avoid ld error</li>
+<li>add link to gcc and g++ with gcc-4.4 and make sure import the path before /usr/bin</li>
+</ol>
+</li>
+<li>libgl -- 32 bits: pacman -S lib32-libgl</li>
+<li>kmod -- arch version is also has problem (it will search usr/lib/ instead of lib/)</li>
+<li>rlimit -- not found in davlink, add <sys/resource.h></li>
+</ul>
+<h5 id="bash-completion">bash completion</h5>
+<pre><code>pacman -S bash-completion
+</code></pre><h5 id="install-virtualbox">install virtualbox</h5>
+<p>install virutalbox</p>
+<pre><code>pacman -S virtualbox virtualbox-guest-iso virtualbox-host-modules
+</code></pre><p>load vbox modules at bootup</p>
+<ul>
+<li>automode: create a file, for example <code>vbox.conf</code> under dir /etc/modules-load.d/ with the content <code>vboxdrv</code></li>
+<li>manual way: <code>modprobe vboxdrv</code></li>
+</ul>
+
+    
+  </div>
+  <footer>
+    
+      
+  
+  <div class="categories">
+    <a href="/categories/Tech/">Tech</a>
+  </div>
+
+      
+  
+  <div class="tags">
+    <a href="/tags/archlinux/">archlinux</a>
+  </div>
+
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+  <div class="ds-thread" data-title="ARCH Linux 安装">
+  </div>
+</section>
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

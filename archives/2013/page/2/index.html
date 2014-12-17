@@ -1,0 +1,422 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>第 2 页 | 归档：2013 | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content">
+<h2 class="archive-title">2013</h2>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-08-25T03:32:00.000Z"><a href="/2013/08/25/[python]-array-of-empty-list/">2013-08-25</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/08/25/[python]-array-of-empty-list/">[python] array of empty list</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>in bucket sort, I want to generate a array of empty bucket, so I did in this way:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l = [[]] * <span class="number">3</span>
+<span class="prompt">&gt;&gt;&gt; </span>l
+[[], [], []]
+</pre></td></tr></table></figure>
+
+<p>Then the problem is when I try to append one element to bucket[0], it affects all the rest.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l[<span class="number">0</span>].append(<span class="number">1</span>)
+<span class="prompt">&gt;&gt;&gt; </span>l
+[[<span class="number">1</span>], [<span class="number">1</span>], [<span class="number">1</span>]]
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/08/25/[python]-array-of-empty-list/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-08-21T00:59:19.000Z"><a href="/2013/08/21/new-style-class-in-Python2/">2013-08-21</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/08/21/new-style-class-in-Python2/">new-style class in Python2</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>Definition of <code>new-style class</code> in python</p>
+<blockquote>
+<p><em><a href="http://docs.python.org/2/glossary.html#term-new-style-class" target="_blank">new-style class</a></em>
+Any class which inherits from object. This includes all built-in types like list and dict. Only new-style classes can use Python’s newer, versatile features like <code>__slots__</code>, descriptors, properties, and <code>__getattribute__()</code>.</p>
+</blockquote>
+<p>简单来说, <em>new-style class</em> 就是继承与<code>object</code>基类的class. 来看一个例子:</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/08/21/new-style-class-in-Python2/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-07-20T07:58:17.000Z"><a href="/2013/07/20/Setup-a-mail-server-to-send-email-only/">2013-07-20</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/07/20/Setup-a-mail-server-to-send-email-only/">Setup a mail server to send email only</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="smtp-server">SMTP server</h3>
+<p>Here I just choose postfix.
+Someone on the Internet said the configuration was very complicated, but after I install postfix, I found the default config file is OK if you just want to send email from you locathost.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install postfix
+</pre></td></tr></table></figure>
+
+<p>At first time when you test sending email, you might encount with such error:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>postdrop: warning: unable <span class="built_in">to</span> look up public/pickup: 
+No such <span class="built_in">file</span> <span class="operator">or</span> <span class="built_in">directory</span>
+</pre></td></tr></table></figure>
+
+<p>That&#39;s because old sendmail daemon still running, just stop it and restart postfix can fix:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>$ <span class="built_in">sudo</span> /etc/init.d/sendmail stop 
+$ <span class="built_in">sudo</span>  mkfifo /var/spool/postfix/public/pickup
+$ <span class="built_in">sudo</span> /etc/init.d/postfix restart
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/07/20/Setup-a-mail-server-to-send-email-only/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-03-23T22:48:01.000Z"><a href="/2013/03/24/Pyhton-Naming-Conventions-/">2013-03-24</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/03/24/Pyhton-Naming-Conventions-/">Pyhton Naming Conventions </a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="package-module">Package &amp; Module</h3>
+<ul>
+<li>名字尽量短, 全部使用<em>小写</em></li>
+<li>Module 在必要时可以使用下划线<code>_</code>, 而package则不建议.</li>
+<li>用C或者C++扩展的Module, 在前面加<code>_</code>(比如:<code>_socket</code>)</li>
+</ul>
+<h3 id="class-exception">Class &amp; Exception</h3>
+<ul>
+<li>统一使用<code>CapWords</code></li>
+<li>只在内部使用的类, 前面加<code>_</code>(比如<code>_CapWords</code>)</li>
+<li>对于Exception, 如果确实是错误的话, 加<code>Error</code>后缀</li>
+</ul>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/03/24/Pyhton-Naming-Conventions-/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-03-04T23:49:33.000Z"><a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/">2013-03-05</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/">通过kernel Makefile 生成 cscope ctags</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>在kernel 中使用cscope 经常会出现很多的数据是没有用，比如一个函数被不同版本的驱动定义了很多次，而这些版本是我们不需要的，查找定义是会出现很多的选项，看得眼睛都花了 T.T </p>
+<p>于是写了一个脚本，通过kernel makefile 来生成这些数据库，这样查找就能很精确，一步到位 ^_^</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+
+  <nav id="pagination">
+  
+    <a href="/archives/2013/" class="prev">上一页</a>
+  
+  
+    <a href="/archives/2013/page/3/" class="next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav>
+
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

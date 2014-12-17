@@ -1,0 +1,4085 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title><![CDATA[Logic in Chaos]]></title>
+  <subtitle><![CDATA[Finding way to program the life]]></subtitle>
+  <link href="/atom.xml" rel="self"/>
+  <link href="http://oneyoung.im/"/>
+  <updated>2014-12-17T07:43:04.070Z</updated>
+  <id>http://oneyoung.im/</id>
+  
+  <author>
+    <name><![CDATA[oneyoung]]></name>
+    <email><![CDATA[guowangyang@gmail.com]]></email>
+  </author>
+  
+  <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[[Android] The Story of MediaPlayer.setDataSource [Part.1]]]></title>
+    <link href="http://oneyoung.im/2014/12/17/the-story-of-mediaplayersetdatasource-%5Bpart1%5D/"/>
+    <id>http://oneyoung.im/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/</id>
+    <published>2014-12-17T03:22:25.000Z</published>
+    <updated>2014-12-17T03:34:12.000Z</updated>
+    <content type="html"><![CDATA[<p>Android <code>MediaPlayer</code> is a big class for all purpose media type playing, including local file and streaming playing.</p>
+<p>The story start from <code>MediaPlayer.setDataSource</code>.</p>
+<h2 id="-android-media-package"><code>android.media</code> package</h2>
+<p><code>android.media</code> package locates in <code>frameworks/base/media</code>, and it&#39;s Java source is <code>java/android/media</code>.</p>
+<p>This package provide various of interface for media playing/recording/decoding etc, including the <code>MediaPlayer</code> we are going to talk about today.</p>
+<h3 id="-mediaplayer-setdatasource-"><code>MediaPlayer.setDataSource()</code></h3>
+<p>I would not talk much about <code>MediaPlayer</code> constrution, the part we are insterested is what happens after calling <code>setDataSource()</code></p>
+<p>From <a href="http://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank">developer.android</a>, MediaPlayer provide 4 types of method reloading for <code>setDataSource</code>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="literal">void</span> setDataSource(<span class="built_in">String</span> path)
+<span class="literal">void</span> setDataSource(Context context, Uri uri, <span class="built_in">Map</span><span class="subst">&lt;</span><span class="built_in">String</span>, <span class="built_in">String</span><span class="subst">&gt;</span> headers)
+<span class="literal">void</span> setDataSource(Context context, Uri uri)
+<span class="literal">void</span> setDataSource(FileDescriptor fd, long offset, long length)
+<span class="literal">void</span> setDataSource(FileDescriptor fd)
+</pre></td></tr></table></figure>
+
+<a id="more"></a>
+
+<p>Although <code>setDataSource</code> accept various of source, including android content URI, asset fd, local file path and http/rtsp URL, it can be categoried into two type of source:</p>
+<ul>
+<li>web source: http/https/rtsp URL<ul>
+<li>native API: <code>private native void nativeSetDataSource(...)</code></li>
+</ul>
+</li>
+<li>file source: local file open as fd (Android content URI, asset fd, local file path) <ul>
+<li>native API: <code>private native void _setDataSource(...)</code></li>
+</ul>
+</li>
+</ul>
+<h4 id="dig-in">Dig in</h4>
+<p>Let&#39;s take the most general API <code>void    setDataSource(String path)</code> for example:</p>
+<p>This API will eventually calling the below code snap, note that <em>line 5</em> is the key point to branch.</p>
+<ul>
+<li>an local file path will has a prefix <code>file:///</code> in URI</li>
+<li>whereas a streaming http/https/rtsp not.</li>
+</ul>
+<p>we can see <em>line 9</em> that if source is a remote source, it will invoke <code>nativeSetDataSource</code>.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+</pre></td><td class="code"><pre>    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title">setDataSource</span>(String path, String[] keys, String[] values)
+            <span class="keyword">throws</span> IOException, IllegalArgumentException, SecurityException, IllegalStateException {
+        <span class="keyword">final</span> Uri uri = Uri.parse(path);
+        <span class="keyword">final</span> String scheme = uri.getScheme();
+        <span class="keyword">if</span> (<span class="string">"file"</span>.equals(scheme)) {
+            path = uri.getPath();
+        } <span class="keyword">else</span> <span class="keyword">if</span> (scheme != <span class="keyword">null</span>) {
+            <span class="comment">// handle non-file sources</span>
+            nativeSetDataSource(
+                MediaHTTPService.createHttpServiceBinderIfNecessary(path),
+                path,
+                keys,
+                values);
+            <span class="keyword">return</span>;
+        }
+
+        <span class="keyword">final</span> File file = <span class="keyword">new</span> File(path);
+        <span class="keyword">if</span> (file.exists()) {
+            FileInputStream is = <span class="keyword">new</span> FileInputStream(file);
+            FileDescriptor fd = is.getFD();
+            setDataSource(fd);
+            is.close();
+        } <span class="keyword">else</span> {
+            <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"setDataSource failed."</span>);
+        }
+    }
+</pre></td></tr></table></figure>
+
+<p><em>line 21</em> is the route for local file path, which will call native method &#39;_setDataSource` in the end.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setDataSource</span>(FileDescriptor fd)
+            <span class="keyword">throws</span> IOException, IllegalArgumentException, IllegalStateException {
+        <span class="comment">// intentionally less than LONG_MAX</span>
+        setDataSource(fd, <span class="number">0</span>, <span class="number">0x7ffffffffffffff</span>L);
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setDataSource</span>(FileDescriptor fd, <span class="keyword">long</span> offset, <span class="keyword">long</span> length)
+            <span class="keyword">throws</span> IOException, IllegalArgumentException, IllegalStateException {
+        _setDataSource(fd, offset, length);
+    }
+</pre></td></tr></table></figure>
+
+<h3 id="jni-library">JNI library</h3>
+<p>Obviously, Java code can&#39;t cover all the things to play media, actually, it heavily depends on C/C++ library.</p>
+<p>Here JNI act as a bridge for Android Java code to access C/C++ library. The corresponding JNI path for <code>MediaPlayer</code> is <code>jni/android_media_MediaPlayer.cpp</code> under <code>frameworks/base/media</code>.</p>
+<p>Let&#39;s see the what was going on in the two native API methoded above.</p>
+<h4 id="native-api-declare-and-mapping">native API declare and mapping</h4>
+<ul>
+<li><code>nativeSetDataSource</code> ==&gt; <code>android_media_MediaPlayer_setDataSourceAndHeaders</code></li>
+<li><code>_setDataSource</code> ==&gt; <code>android_media_MediaPlayer_setDataSourceFD</code></li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre><span class="keyword">static</span> JNINativeMethod gMethods[] = {
+    {
+        <span class="string">"nativeSetDataSource"</span>,
+        <span class="string">"(Landroid/os/IBinder;Ljava/lang/String;[Ljava/lang/String;"</span>
+        <span class="string">"[Ljava/lang/String;)V"</span>,
+        (<span class="keyword">void</span> *)android_media_MediaPlayer_setDataSourceAndHeaders
+    },
+
+    {<span class="string">"_setDataSource"</span>,       <span class="string">"(Ljava/io/FileDescriptor;JJ)V"</span>,    (<span class="keyword">void</span> *)android_media_MediaPlayer_setDataSourceFD},
+</pre></td></tr></table></figure>
+
+<h4 id="jni-is-just-a-bridge">JNI is just a bridge</h4>
+<p>What have been done in JNI?</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+</pre></td><td class="code"><pre><span class="keyword">static</span> <span class="keyword">void</span>
+android_media_MediaPlayer_setDataSourceAndHeaders(
+        JNIEnv *env, jobject thiz, jobject httpServiceBinderObj, jstring path,
+        jobjectArray keys, jobjectArray values) {
+
+    sp&lt;MediaPlayer&gt; mp = getMediaPlayer(env, thiz);
+    ...
+    sp&lt;IMediaHTTPService&gt; httpService;
+    <span class="keyword">if</span> (httpServiceBinderObj != NULL) {
+        sp&lt;IBinder&gt; binder = ibinderForJavaObject(env, httpServiceBinderObj);
+        httpService = interface_cast&lt;IMediaHTTPService&gt;(binder);
+    }
+
+    status_t opStatus =
+        mp-&gt;setDataSource(
+                httpService,
+                pathStr,
+                headersVector.size() &gt; <span class="number">0</span>? &headersVector : NULL);
+    ...
+}
+</pre></td></tr></table></figure>
+
+<p>There is nothing much done in JNI code, most of work is type convert, and adopt <code>libmedia</code>.</p>
+<h3 id="-libmedia-"><code>libmedia</code></h3>
+<blockquote>
+<p>path: <code>frameworks/av/media/libmedia/</code></p>
+</blockquote>
+<p>Now we eventually come to C++ world.</p>
+<h4 id="what-s-going-on-in-setdatasource-again">what&#39;s going on in <code>setDataSource</code> again</h4>
+<blockquote>
+<p>file: <code>mediaplayer.cpp</code></p>
+</blockquote>
+<p>Let&#39;s take http source for example:</p>
+<p>Note <em>line 8</em>, it will try to get <code>MediaPlayerService</code>, but wait, WTF, it still contine to call another service, endless call chain! </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre>status_t MediaPlayer::setDataSource(
+        <span class="keyword">const</span> sp&lt;IMediaHTTPService&gt; &httpService,
+        <span class="keyword">const</span> <span class="keyword">char</span> *url, <span class="keyword">const</span> KeyedVector&lt;String8, String8&gt; *headers)
+{
+                    ALOGV(<span class="string">"setDataSource(%s)"</span>, url);
+        status_t err = BAD_VALUE;
+        <span class="keyword">if</span> (url != NULL) {
+            <span class="keyword">const</span> sp&lt;IMediaPlayerService&gt;& service(getMediaPlayerService());
+        <span class="keyword">if</span> (service != <span class="number">0</span>) {
+            sp&lt;IMediaPlayer&gt; player(service-&gt;create(<span class="keyword">this</span>, mAudioSessionId));
+            <span class="keyword">if</span> ((NO_ERROR != doSetRetransmitEndpoint(player)) ||
+                (NO_ERROR != player-&gt;setDataSource(httpService, url, headers))) {
+                player.clear();
+            }
+            err = attachNewPlayer(player);
+        }
+    }
+    <span class="keyword">return</span> err;
+}
+</pre></td></tr></table></figure>
+
+<h3 id="-mediaserver-"><code>mediaserver</code></h3>
+<blockquote>
+<p>path: <code>frameworks/av/media/mediaserver</code></p>
+</blockquote>
+<p>In previous section, we say that something called <code>MediaPlayerService</code> is invoked. This is done by this daemon.</p>
+<p>The task done here is quite simple, by including libraries, it acts as a center to provide services for all kinds of media functions. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+</pre></td><td class="code"><pre><span class="keyword">int</span> main(<span class="keyword">int</span> argc __unused, <span class="keyword">char</span>** argv)
+{
+    ...
+        sp&lt;ProcessState&gt; proc(ProcessState::self());
+        sp&lt;IServiceManager&gt; sm = defaultServiceManager();
+        ALOGI(<span class="string">"ServiceManager: %p"</span>, sm.get());
+        AudioFlinger::instantiate();
+        MediaPlayerService::instantiate();
+        CameraService::instantiate();
+        AudioPolicyService::instantiate();
+        SoundTriggerHwService::instantiate();
+        registerExtensions();
+        ProcessState::self()-&gt;startThreadPool();
+        IPCThreadState::self()-&gt;joinThreadPool();
+    ...
+</pre></td></tr></table></figure>
+
+<p>Note in <em>line 8</em>, <code>mediaserver</code> register a service called <code>MediaPlayerService</code>. Yep! That&#39;s all we want to find.</p>
+<h3 id="-mediaplayerservice-"><code>MediaPlayerService</code></h3>
+<blockquote>
+<p>path: <code>frameworks/av/media/libmediaplayerservice/MediaPlayerService.cpp</code></p>
+</blockquote>
+<p>Yes, the story is not reach the end. Now we come to another library called <code>libmediaplayerservice</code>. It has an interface called <code>MediaPlayerService</code>.</p>
+<p>Note that in <code>frameworks/av/media/libmedia/mediaplayer.cpp</code> <code>setDataSource</code> has the following calls. Let&#39;s have a look at it.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre>            <span class="comment">/* get MediaPlayerService */</span>
+            <span class="keyword">const</span> sp&lt;IMediaPlayerService&gt;& service(getMediaPlayerService());
+            <span class="comment">/* create a player by service-&gt;create */</span>
+            sp&lt;IMediaPlayer&gt; player(service-&gt;create(<span class="keyword">this</span>, mAudioSessionId));
+            <span class="comment">/* again call setDataSource */</span>
+             (NO_ERROR != player-&gt;setDataSource(httpService, url, headers))) {
+</pre></td></tr></table></figure>
+
+<h5 id="-service-create-"><code>service-&gt;create</code></h5>
+<p>Nothing special here, it create a class <code>Client</code>, and return it.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+</pre></td><td class="code"><pre>sp&lt;IMediaPlayer&gt; MediaPlayerService::create(<span class="keyword">const</span> sp&lt;IMediaPlayerClient&gt;& client,
+        <span class="keyword">int</span> audioSessionId)
+{
+    ...
+    sp&lt;Client&gt; c = <span class="keyword">new</span> Client(
+            <span class="keyword">this</span>, pid, connId, client, audioSessionId,
+            IPCThreadState::self()-&gt;getCallingUid());
+    ...
+    wp&lt;Client&gt; w = c;
+    {
+        Mutex::Autolock lock(mLock);
+        mClients.add(w);
+    }
+    <span class="keyword">return</span> c;
+}
+</pre></td></tr></table></figure>
+
+<h5 id="-player-setdatasource-"><code>player-&gt;setDataSource</code></h5>
+<p>From previous section, we can see that <code>player</code> is a instance of <code>Client</code>. Let&#39;s have a glance at <code>setDataSource</code></p>
+<p>Since we want to investigate remote source like HTTP, we quickly jump to <em>line 17</em>.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+</pre></td><td class="code"><pre>status_t MediaPlayerService::Client::setDataSource(
+        <span class="keyword">const</span> sp&lt;IMediaHTTPService&gt; &httpService,
+        <span class="keyword">const</span> <span class="keyword">char</span> *url,
+        <span class="keyword">const</span> KeyedVector&lt;String8, String8&gt; *headers)
+{
+    ...
+    <span class="keyword">if</span> (<span class="built_in">strncmp</span>(url, <span class="string">"content://"</span>, <span class="number">10</span>) == <span class="number">0</span>) {
+        <span class="comment">// get a filedescriptor for the content Uri and</span>
+        <span class="comment">// pass it to the setDataSource(fd) method</span>
+
+        String16 url16(url);
+        <span class="keyword">int</span> fd = android::openContentProviderFile(url16);
+        ...
+        setDataSource(fd, <span class="number">0</span>, <span class="number">0x7fffffffff</span>LL); <span class="comment">// this sets mStatus</span>
+        ...
+    } <span class="keyword">else</span> {
+        player_type playerType = MediaPlayerFactory::getPlayerType(<span class="keyword">this</span>, url);
+        sp&lt;MediaPlayerBase&gt; p = setDataSource_pre(playerType);
+        <span class="keyword">if</span> (p == NULL) {
+            <span class="keyword">return</span> NO_INIT;
+        }
+
+        setDataSource_post(p, p-&gt;setDataSource(httpService, url, headers));
+        <span class="keyword">return</span> mStatus;
+    }
+}
+</pre></td></tr></table></figure>
+
+<p>Here is a interesting part <code>MediaPlayerFactory::getPlayerType(this, url);</code></p>
+<h4 id="-mediaplayerfactory-"><code>MediaPlayerFactory</code></h4>
+<blockquote>
+<p>file: <code>MediaPlayerFactory.cpp</code></p>
+</blockquote>
+<p>This is a &quot;Factory&quot; to provide various kind of players. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="code"><pre><span class="keyword">void</span> MediaPlayerFactory::registerBuiltinFactories() {
+    ....
+    registerFactory_l(<span class="keyword">new</span> StagefrightPlayerFactory(), STAGEFRIGHT_PLAYER);
+    registerFactory_l(<span class="keyword">new</span> NuPlayerFactory(), NU_PLAYER);
+    registerFactory_l(<span class="keyword">new</span> SonivoxPlayerFactory(), SONIVOX_PLAYER);
+    registerFactory_l(<span class="keyword">new</span> TestPlayerFactory(), TEST_PLAYER);
+    ...
+}
+</pre></td></tr></table></figure>
+
+<p>we can infer that it provide 4 kinds of players:</p>
+<ul>
+<li><code>StagefrightPlayer</code>: <ul>
+<li>source: <code>frameworks/av/media/libstagefright</code></li>
+<li>a generic player for local file playing.</li>
+</ul>
+</li>
+<li><code>NuPlayer</code><ul>
+<li>source: <code>frameworks/av/media/libmediaplayerservice/nuplayer</code></li>
+<li>It&#39;s a built-in player, i.e. static link into <code>libmediaplayerservice</code></li>
+</ul>
+</li>
+<li><code>SonivoxPlayer</code><ul>
+<li>source: <code>external/sonivox/</code></li>
+<li>For MIDI playback.</li>
+</ul>
+</li>
+<li><code>TestPlayer</code>: just ignore it.</li>
+</ul>
+<h5 id="how-the-factory-detemines-which-player-to-use-">How the factory detemines which player to use?</h5>
+<p>In <code>setDataSource</code> we call <code>MediaPlayerFactory::getPlayerType(this, url);</code>, so what happens here?</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+</pre></td><td class="code"><pre>player_type MediaPlayerFactory::getPlayerType(<span class="keyword">const</span> sp&lt;IMediaPlayer&gt;& client,
+                                              <span class="keyword">const</span> <span class="keyword">char</span>* url) {
+    GET_PLAYER_TYPE_IMPL(client, url);
+}
+
+<span class="preprocessor">#define GET_PLAYER_TYPE_IMPL(a...)                      \</span>
+    Mutex::Autolock lock_(&sLock);                      \
+                                                        \
+    player_type ret = STAGEFRIGHT_PLAYER;               \
+    <span class="keyword">float</span> bestScore = <span class="number">0.0</span>;                              \
+                                                        \
+    <span class="keyword">for</span> (size_t i = <span class="number">0</span>; i &lt; sFactoryMap.size(); ++i) {   \
+                                                        \
+        IFactory* v = sFactoryMap.valueAt(i);           \
+        <span class="keyword">float</span> thisScore;                                \
+        CHECK(v != NULL);                               \
+        thisScore = v-&gt;scoreFactory(a, bestScore);      \
+        <span class="keyword">if</span> (thisScore &gt; bestScore) {                    \
+            ret = sFactoryMap.keyAt(i);                 \
+            bestScore = thisScore;                      \
+        }                                               \
+    }                                                   \
+                                                        \
+    <span class="keyword">if</span> (<span class="number">0.0</span> == bestScore) {                             \
+        ret = getDefaultPlayerType();                   \
+    }                                                   \
+                                                        \
+    <span class="keyword">return</span> ret;
+</pre></td></tr></table></figure>
+
+<p>Emm, an annoying Marco, but <em>line 17</em> has an interesting method call <code>scoreFactory</code>.</p>
+<p>This is a scoring system, it will return the player which score highest among all available media players.</p>
+<h5 id="-scorefactory-in-nuplayer"><code>scoreFactory</code> in NuPlayer</h5>
+<p>But what&#39;s happens in <code>scoreFactory</code>, take a look at NuPlayer:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+</pre></td><td class="code"><pre><span class="keyword">class</span> NuPlayerFactory : <span class="keyword">public</span> MediaPlayerFactory::IFactory {
+  <span class="keyword">public</span>:
+    <span class="keyword">virtual</span> <span class="keyword">float</span> scoreFactory(<span class="keyword">const</span> sp&lt;IMediaPlayer&gt;& <span class="comment">/*client*/</span>,
+                               <span class="keyword">const</span> <span class="keyword">char</span>* url,
+                               <span class="keyword">float</span> curScore) {
+        <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">float</span> kOurScore = <span class="number">0.8</span>;
+
+        <span class="keyword">if</span> (kOurScore &lt;= curScore)
+            <span class="keyword">return</span> <span class="number">0.0</span>;
+
+        <span class="keyword">if</span> (!strncasecmp(<span class="string">"http://"</span>, url, <span class="number">7</span>)
+                || !strncasecmp(<span class="string">"https://"</span>, url, <span class="number">8</span>)
+                || !strncasecmp(<span class="string">"file://"</span>, url, <span class="number">7</span>)) {
+            size_t len = <span class="built_in">strlen</span>(url);
+            <span class="keyword">if</span> (len &gt;= <span class="number">5</span> && !strcasecmp(<span class="string">".m3u8"</span>, &url[len - <span class="number">5</span>])) {
+                <span class="keyword">return</span> kOurScore;
+            }
+
+            <span class="keyword">if</span> (<span class="built_in">strstr</span>(url,<span class="string">"m3u8"</span>)) {
+                <span class="keyword">return</span> kOurScore;
+            }
+
+            <span class="keyword">if</span> ((len &gt;= <span class="number">4</span> && !strcasecmp(<span class="string">".sdp"</span>, &url[len - <span class="number">4</span>])) || <span class="built_in">strstr</span>(url, <span class="string">".sdp?"</span>)) {
+                <span class="keyword">return</span> kOurScore;
+            }
+        }
+
+        <span class="keyword">if</span> (!strncasecmp(<span class="string">"rtsp://"</span>, url, <span class="number">7</span>)) {
+            <span class="keyword">return</span> kOurScore;
+        }
+
+        <span class="keyword">return</span> <span class="number">0.0</span>;
+    }
+</pre></td></tr></table></figure>
+
+<p>from <em>line 11~30</em>, it tells us that NuPlayer is good at playing streaming media (&quot;.m3u8&quot;, i.e. http/https live streaming, &quot;rtsp&quot; and &quot;sdp&quot;).</p>
+<p>So if we passing a streaming media URL to <code>MediaPlayer</code>, in most case, NuPlayer will server us.</p>
+]]></content>
+    <summary type="html"><![CDATA[<p>Android <code>MediaPlayer</code> is a big class for all purpose media type playing, including local file and streaming playing.</p>
+<p>The story start from <code>MediaPlayer.setDataSource</code>.</p>
+<h2 id="-android-media-package"><code>android.media</code> package</h2>
+<p><code>android.media</code> package locates in <code>frameworks/base/media</code>, and it&#39;s Java source is <code>java/android/media</code>.</p>
+<p>This package provide various of interface for media playing/recording/decoding etc, including the <code>MediaPlayer</code> we are going to talk about today.</p>
+<h3 id="-mediaplayer-setdatasource-"><code>MediaPlayer.setDataSource()</code></h3>
+<p>I would not talk much about <code>MediaPlayer</code> constrution, the part we are insterested is what happens after calling <code>setDataSource()</code></p>
+<p>From <a href="http://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank">developer.android</a>, MediaPlayer provide 4 types of method reloading for <code>setDataSource</code>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="literal">void</span> setDataSource(<span class="built_in">String</span> path)
+<span class="literal">void</span> setDataSource(Context context, Uri uri, <span class="built_in">Map</span><span class="subst">&lt;</span><span class="built_in">String</span>, <span class="built_in">String</span><span class="subst">&gt;</span> headers)
+<span class="literal">void</span> setDataSource(Context context, Uri uri)
+<span class="literal">void</span> setDataSource(FileDescriptor fd, long offset, long length)
+<span class="literal">void</span> setDataSource(FileDescriptor fd)
+</pre></td></tr></table></figure>
+
+]]></summary>
+    
+      <category term="android" scheme="http://oneyoung.im/tags/android/"/>
+    
+      <category term="java" scheme="http://oneyoung.im/tags/java/"/>
+    
+      <category term="multimedia" scheme="http://oneyoung.im/tags/multimedia/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[Android] Bypass SSL cert check when connecting to localhost through HTTPS]]></title>
+    <link href="http://oneyoung.im/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/"/>
+    <id>http://oneyoung.im/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/</id>
+    <published>2014-12-17T01:49:20.000Z</published>
+    <updated>2014-12-17T01:58:13.000Z</updated>
+    <content type="html"><![CDATA[<p>最近需要用HTTPS连接到localhost做一些测试，但是发现一个SSL证书的问题， 用Android的MediaPlayer播放Https内容的时候总是失败在SSL连接握手阶段，应该是localhost证书非法，验证不了，直接导致MediaPlayer拒绝连接。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="label">javax.net.ssl.SSLProtocolException:</span> SSL handshake terminated: ssl=<span class="number">0xef44d200</span>: Failure <span class="keyword">in</span> SSL library, usually a protocol error
+<span class="label">error:</span><span class="number">14094416</span>:SSL routines:SSL3_READ_BYTES:sslv3 alert certificate unknown (external/openssl/ssl/s3_pkt<span class="preprocessor">.c</span>:<span class="number">1286</span> <span class="number">0xef40c640</span>:<span class="number">0x00000003</span>)
+</pre></td></tr></table></figure>
+
+<h3 id="level-of-security">Level of Security</h3>
+<p>对于连接的安全级别，可以分为下列3个级别：</p>
+<ul>
+<li>Level A – no encryption, no verification</li>
+<li>Level B – encryption, no verification</li>
+<li>Level C – encryption and verification</li>
+</ul>
+<p>Level A 就是相当于http连接，没有任何保护；而Level C就相当于https连接，连接加密且验证连接方。</p>
+<p>而对于媒体播放的需求其实更接近于是Level B，只需要传输数据加密，不让别人知道自己看过什么，而对播放源验证不会有那么严格的要求。</p>
+<a id="more"></a>
+
+<h3 id="how-to-bypass-verification-">How to bypass verification?</h3>
+<p>https 连接验证可以粗略的分为两个阶段：</p>
+<ul>
+<li>Step 1： 验证服务器证书是否是由trusted CA颁发的。</li>
+<li>Step 2： 验证服务器是否隶属于该授信证书。</li>
+</ul>
+<h4 id="java-implement">Java Implement</h4>
+<p>Java 中将上面的两个验证步骤交由一下两个class实现：</p>
+<ul>
+<li>Step 1: <code>javax.net.ssl.X509TrustManager</code> </li>
+<li>Step 2: <code>javax.net.ssl.HostnameVerifier</code> </li>
+</ul>
+<h4 id="bypass-in-android">Bypass in Android</h4>
+<p>Android 沿用了Java的<a href="http://developer.android.com/reference/javax/net/ssl/HttpsURLConnection.html" target="_blank">HttpsURLConnection</a>, 它里面提供两个API: <code>setDefaultSSLSocketFactory</code>,  <code>setDefaultHostnameVerifier</code> 可以修改全局的SSL验证机制。</p>
+<p>通过修改默认的<code>SSLSocketFactory</code> 和 <code>HostnameVerifier</code>，之后调用<code>MediaPlayer.setDataSource(URL)</code>, 就可以成功连接。</p>
+<p>注意到<em>line 15</em>和<em>line 39</em>，我们重新定义了这两个class，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+</pre></td><td class="code"><pre><span class="keyword">import</span> java.security.cert.X509Certificate;
+<span class="keyword">import</span> javax.net.ssl.HostnameVerifier;
+<span class="keyword">import</span> javax.net.ssl.HttpsURLConnection;
+<span class="keyword">import</span> javax.net.ssl.SSLContext;
+<span class="keyword">import</span> javax.net.ssl.SSLSession;
+<span class="keyword">import</span> javax.net.ssl.TrustManager;
+<span class="keyword">import</span> javax.net.ssl.X509TrustManager;
+<span class="keyword">import</span> javax.net.ssl.SSLSocketFactory;
+ 
+<span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">BypassSSLCert</span> {</span>
+    <span class="keyword">private</span> SSLSocketFactory mDefaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
+    <span class="keyword">private</span> HostnameVerifier mDefaultHostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
+ 
+    <span class="comment">/* dummy TrustManager to trust all host, test only */</span>
+    <span class="keyword">private</span> <span class="keyword">static</span> X509TrustManager <span class="title">getDummyTrustManager</span>() {
+        <span class="keyword">return</span> <span class="keyword">new</span> X509TrustManager() {
+            <span class="keyword">public</span> java.security.cert.X509Certificate[] <span class="title">getAcceptedIssuers</span>() {
+                <span class="keyword">return</span> <span class="keyword">null</span>;
+            }
+            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">checkClientTrusted</span>(X509Certificate[] certs, String authType) {
+            }
+            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">checkServerTrusted</span>(X509Certificate[] certs, String authType) {
+            }
+        };
+    }
+ 
+    <span class="comment">/* by pass SSL connection error to localhost */</span>
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">bypassLocalhostSSL</span>(<span class="keyword">boolean</span> enable) <span class="keyword">throws</span> Exception {
+        HostnameVerifier hostnameVerifier;
+        SSLSocketFactory sslSocketFactory;
+        <span class="keyword">if</span> (enable) {
+            TrustManager[] tma = <span class="keyword">new</span> TrustManager[] {getDummyTrustManager()};
+ 
+            <span class="comment">// Install the all-trusting trust manager</span>
+            SSLContext sc = SSLContext.getInstance(<span class="string">"TLS"</span>);
+            sc.init(<span class="keyword">null</span>, tma, <span class="keyword">new</span> java.security.SecureRandom());
+            sslSocketFactory = sc.getSocketFactory();
+ 
+            hostnameVerifier = <span class="keyword">new</span> HostnameVerifier() {
+                <span class="annotation">@Override</span>
+                <span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">verify</span>(String hostname, SSLSession session) {
+                    HostnameVerifier hv = mDefaultHostnameVerifier;
+                    <span class="keyword">if</span> (hostname.equals(<span class="string">"localhost"</span>)) {
+                        <span class="keyword">return</span> <span class="keyword">true</span>;
+                    } <span class="keyword">else</span> {
+                        <span class="keyword">return</span> hv.verify(hostname, session);
+                    }
+                }
+            };
+        } <span class="keyword">else</span> {
+            sslSocketFactory = mDefaultSSLSocketFactory;
+            hostnameVerifier = mDefaultHostnameVerifier;
+        }
+        HttpsURLConnection.setDefaultSSLSocketFactory(sslSocketFactory);
+        HttpsURLConnection.setDefaultHostnameVerifier(hostnameVerifier);
+    }
+}
+</pre></td></tr></table></figure>
+
+<p>但是这个方法有一个局限，只能在自己进程内有效，如果通过startActivity调用另外进程的APP，比如系统default的Player，就不能起作用了。</p>
+<h3 id="reference">Reference</h3>
+<ol>
+<li><a href="https://agiletribe.wordpress.com/2011/10/16/working-around-javas-ssl-limitations/" target="_blank">https://agiletribe.wordpress.com/2011/10/16/working-around-javas-ssl-limitations/</a></li>
+<li><a href="http://stackoverflow.com/questions/2642777/trusting-all-certificates-using-httpclient-over-https/6378872#6378872" target="_blank">http://stackoverflow.com/questions/2642777/trusting-all-certificates-using-httpclient-over-https/6378872#6378872</a></li>
+<li><a href="http://stackoverflow.com/questions/2012497/accepting-a-certificate-for-https-on-android" target="_blank">http://stackoverflow.com/questions/2012497/accepting-a-certificate-for-https-on-android</a></li>
+<li><a href="http://developer.android.com/reference/javax/net/ssl/HttpsURLConnection.html" target="_blank">http://developer.android.com/reference/javax/net/ssl/HttpsURLConnection.html</a></li>
+<li><a href="http://developer.android.com/training/articles/security-ssl.html" target="_blank">http://developer.android.com/training/articles/security-ssl.html</a></li>
+<li><a href="http://stackoverflow.com/questions/7828985/android-video-streaming-over-local-https-server-ssl-certificate-rejected" target="_blank">http://stackoverflow.com/questions/7828985/android-video-streaming-over-local-https-server-ssl-certificate-rejected</a></li>
+</ol>
+]]></content>
+    <summary type="html"><![CDATA[<p>最近需要用HTTPS连接到localhost做一些测试，但是发现一个SSL证书的问题， 用Android的MediaPlayer播放Https内容的时候总是失败在SSL连接握手阶段，应该是localhost证书非法，验证不了，直接导致MediaPlayer拒绝连接。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="label">javax.net.ssl.SSLProtocolException:</span> SSL handshake terminated: ssl=<span class="number">0xef44d200</span>: Failure <span class="keyword">in</span> SSL library, usually a protocol error
+<span class="label">error:</span><span class="number">14094416</span>:SSL routines:SSL3_READ_BYTES:sslv3 alert certificate unknown (external/openssl/ssl/s3_pkt<span class="preprocessor">.c</span>:<span class="number">1286</span> <span class="number">0xef40c640</span>:<span class="number">0x00000003</span>)
+</pre></td></tr></table></figure>
+
+<h3 id="level-of-security">Level of Security</h3>
+<p>对于连接的安全级别，可以分为下列3个级别：</p>
+<ul>
+<li>Level A – no encryption, no verification</li>
+<li>Level B – encryption, no verification</li>
+<li>Level C – encryption and verification</li>
+</ul>
+<p>Level A 就是相当于http连接，没有任何保护；而Level C就相当于https连接，连接加密且验证连接方。</p>
+<p>而对于媒体播放的需求其实更接近于是Level B，只需要传输数据加密，不让别人知道自己看过什么，而对播放源验证不会有那么严格的要求。</p>
+]]></summary>
+    
+      <category term="android" scheme="http://oneyoung.im/tags/android/"/>
+    
+      <category term="java" scheme="http://oneyoung.im/tags/java/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[linux] 'No protocol specified' error]]></title>
+    <link href="http://oneyoung.im/2014/04/30/%5Blinux%5D-no-protocol-specified/"/>
+    <id>http://oneyoung.im/2014/04/30/[linux]-no-protocol-specified/</id>
+    <published>2014-04-30T08:33:10.000Z</published>
+    <updated>2014-12-17T05:06:24.000Z</updated>
+    <content type="html"><![CDATA[<p>今天突然所有的GUI程序都打不开了, 一直提示有</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$google</span><span class="attribute">-chrome</span><span class="attribute">-stable</span>
+No protocol specified
+
+(google<span class="attribute">-chrome</span><span class="attribute">-stable</span>:<span class="number">13264</span>): Gtk<span class="attribute">-WARNING</span> <span class="subst">**</span>: cannot open display: :<span class="number">0</span>
+</pre></td></tr></table></figure>
+
+<p>错误无非就两种:</p>
+<ul>
+<li><code>No protocol specified</code></li>
+<li><code>cannot open display</code></li>
+</ul>
+<p>奇了怪了, 最近Arch Linux没有升级过, 也没干过神马坏事, 怎么GUI的程序全废了 T.T</p>
+<a id="more"></a>
+
+<p>立马Google之, 好像是<a href="https://bbs.archlinux.org/viewtopic.php?id=122848" target="_blank">跟Xauthority有关系</a>. 但是AUTHORITY的env我早就有了, 不是缺失环境变量的缘故.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="symbol">oneyoung:</span>/home/oneyoung<span class="variable">$env</span> | grep <span class="string">"xauth"</span> -i
+<span class="constant">XAUTHORITY</span>=<span class="regexp">/home/oneyoung</span><span class="regexp">//</span>.<span class="constant">Xauthority</span>
+</pre></td></tr></table></figure>
+
+<p>同一个帖子, 上面有一个老外有说, 出现这种问题通常和权限管理有关系:</p>
+<blockquote>
+<p>Can&#39;t open display :0
+This usually indicates a permission problem;</p>
+</blockquote>
+<p>Xauthority 是由xauth管理的, 咱们来看看xauth是神马东东:</p>
+<blockquote>
+<p><strong>xauth</strong>
+The xauth program is used to edit and display the authorization information used in connecting to the X server. This program is usually used to extract authorization records from one machine and merge them in on another (as is the case when using remote logins or granting access to other users).</p>
+</blockquote>
+<p>简单来说就是对远程client连接X server的一个权限管理.</p>
+<p><code>xauth list</code> 可以列出当前授权的主机列表:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$xauth</span> list
+localhost/unix:<span class="number">0</span>  MIT-MAGIC-COOKIE-<span class="number">1</span>  xxxxxxxxxxxxxxxx85f2192bf00243e4
+Device-<span class="number">04027</span>B/unix:<span class="number">0</span>  MIT-MAGIC-COOKIE-<span class="number">1</span>  xxxxxxxxxxxxxxxx85f2192bf00243e4
+</pre></td></tr></table></figure>
+
+<p>xauth 列出来的列表, cookie是绑定hostname的, 会不会就是这个问题?</p>
+<p>好吧, 咱来瞅瞅:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$hostname</span>
+Device-<span class="number">040761</span>
+
+<span class="comment"># or another way</span>
+oneyoung:~<span class="variable">$cat</span> /proc/sys/kernel/hostname 
+Device-<span class="number">040761</span>
+</pre></td></tr></table></figure>
+
+<p>WTF, hostname 不知怎么被谁给改了, 导致xauth拒绝连接display.</p>
+<p>来来来, 到大家喜闻乐见的solution时间了. 不喜欢看废话的, 直接往这边瞧.</p>
+<p>无非就是<em>两种方法</em>:</p>
+<ul>
+<li><p>将新的hostname 加入auth list</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="comment"># 最后一个参数就是 xauth list 列出的hash value</span>
+xauth add <span class="variable">$DISPLAY</span> MIT-MAGIC-COOKIE-<span class="number">1</span>  xxxxxxxxxxxxxxxx85f2192bf00243e4
+</pre></td></tr></table></figure>
+</li>
+<li><p>把hostname改回去</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>hostnamectl <span class="keyword">set</span>-hostname ORIGINAL_HOSTNAME
+</pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h4 id="-hostname">关于hostname</h4>
+<p>Linux操作系统的hostname是一个kernel变量，可以通过hostname命令来查看本机的hostname。也可以直接cat /proc/sys/kernel/hostname查看。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>hostname
+<span class="comment"># or this way</span>
+cat /proc/sys/kernel/hostname
+</pre></td></tr></table></figure>
+
+<p>上面两种输出结果相同。</p>
+<blockquote>
+<p>Note: 此hostname和/etc/hosts里面的hostname不一样.</p>
+</blockquote>
+<h5 id="-hostname">临时更改hostname</h5>
+<p>修改运行时Linux系统的hostname，即不需要重启系统. hostname命令可以设置系统的hostname</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="comment">#hostname newname</span>
+</pre></td></tr></table></figure>
+
+<p>newname即要设置的新的hostname，运行后立即生效，但是在系统重启后会丢失所做的修改，如果要永久更改系统的hostname，就要修改相关的设置文件。</p>
+<h5 id="-hostname">永久更改hostname</h5>
+<p>hostnamectl 提供了一个命令接口, 将新的hostname写入到<code>/etc/hostname</code>配置文件.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>hostnamectl <span class="keyword">set</span>-hostname newhostname
+<span class="comment"># newhostname is the hostname you want to set</span>
+</pre></td></tr></table></figure>
+
+<p>Ref:</p>
+<ol>
+<li><a href="https://bbs.archlinux.org/viewtopic.php?id=122848" target="_blank">https://bbs.archlinux.org/viewtopic.php?id=122848</a></li>
+<li><a href="http://liuleijsjx.iteye.com/blog/427900" target="_blank">http://liuleijsjx.iteye.com/blog/427900</a></li>
+<li><a href="https://wiki.archlinux.org/index.php/Network_configuration#Set_the_hostname" target="_blank">https://wiki.archlinux.org/index.php/Network_configuration#Set_the_hostname</a></li>
+</ol>
+]]></content>
+    <summary type="html"><![CDATA[<p>今天突然所有的GUI程序都打不开了, 一直提示有</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$google</span><span class="attribute">-chrome</span><span class="attribute">-stable</span>
+No protocol specified
+
+(google<span class="attribute">-chrome</span><span class="attribute">-stable</span>:<span class="number">13264</span>): Gtk<span class="attribute">-WARNING</span> <span class="subst">**</span>: cannot open display: :<span class="number">0</span>
+</pre></td></tr></table></figure>
+
+<p>错误无非就两种:</p>
+<ul>
+<li><code>No protocol specified</code></li>
+<li><code>cannot open display</code></li>
+</ul>
+<p>奇了怪了, 最近Arch Linux没有升级过, 也没干过神马坏事, 怎么GUI的程序全废了 T.T</p>
+]]></summary>
+    
+      <category term="archlinux" scheme="http://oneyoung.im/tags/archlinux/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[导出骑记(iriding.cc)轨迹]]></title>
+    <link href="http://oneyoung.im/2014/04/25/%E5%AF%BC%E5%87%BA%E9%AA%91%E8%AE%B0(iridingcc)%E8%BD%A8%E8%BF%B9/"/>
+    <id>http://oneyoung.im/2014/04/25/导出骑记(iridingcc)轨迹/</id>
+    <published>2014-04-25T03:38:30.000Z</published>
+    <updated>2014-12-11T06:42:34.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>导出<a href="http://iriding.cc" target="_blank">骑记</a>轨迹, 保存成.gpx格式. 方便各类GPS党制作路书, 或者导入到别的平台.</p>
+</blockquote>
+<ul>
+<li><p>依赖: <code>gpxpy</code></p>
+<ul>
+<li><a href="https://github.com/tkrajina/gpxpy" target="_blank">https://github.com/tkrajina/gpxpy</a></li>
+<li>安装: <code>pip2 install gpxpy</code></li>
+</ul>
+</li>
+<li><p>用法:</p>
+<ul>
+<li><code>./iriding2gpx.py ROUTEID</code></li>
+<li>ROUTEID 是每个轨迹的ID<ul>
+<li>比如这个链接: <code>http://iriding.cc/user/route/207130.shtml</code>, route id 就是207130</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<a id="more"></a>
+
+<ul>
+<li>代码: <code>iriding2gpx.py</code></li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+</pre></td><td class="code"><pre><span class="comment">#!/usr/bin/env python2</span>
+<span class="keyword">import</span> urllib
+<span class="keyword">import</span> json
+
+
+<span class="function"><span class="keyword">def</span> <span class="title">fetch_route</span><span class="params">(routeid)</span>:</span>
+    <span class="string">''' fetch route detail from iriding.cc by routeid
+
+    return a list of record consist as below:
+    [
+        {
+            altitude: 442
+            distance: 0
+            id: 94046284
+            latitude: 30.429626993119694
+            longitude: 119.50979758485511
+            record_time: "2014-04-06 07:29:12.0"
+            route_id: 166132
+            speed: 7.7784157
+        },
+        {...},
+        ...
+    ]
+    '''</span>
+    url = <span class="string">"http://iriding.cc/manage/route/routeDetailData.shtml"</span>
+    post_data = urllib.urlencode({<span class="string">'id'</span>: routeid})
+    resp = urllib.urlopen(url, data=post_data).read()
+    j = json.loads(resp)
+    data = j.get(<span class="string">'data'</span>)
+    <span class="keyword">return</span> data
+
+
+<span class="function"><span class="keyword">def</span> <span class="title">route2gpx</span><span class="params">(route, fpath)</span>:</span>
+    <span class="string">''' save a route list of points to gpx file format '''</span>
+    <span class="keyword">import</span> gpxpy.gpx
+    <span class="keyword">import</span> datetime
+
+    <span class="comment"># create gpx object</span>
+    gpx = gpxpy.gpx.GPX()
+    <span class="comment"># create first track in our GPX:</span>
+    gpx_track = gpxpy.gpx.GPXTrack()
+    gpx.tracks.append(gpx_track)
+    <span class="comment"># create first segment in our GPX track:</span>
+    gpx_segment = gpxpy.gpx.GPXTrackSegment()
+    gpx_track.segments.append(gpx_segment)
+    <span class="comment"># # Create points</span>
+    timeformat = <span class="string">"%Y-%m-%d %H:%M:%S.%f"</span>
+    strptime = datetime.datetime.strptime
+    gpx_segment.points = [gpxpy.gpx.GPXTrackPoint(latitude=p[<span class="string">'latitude'</span>],
+                                                  longitude=p[<span class="string">'longitude'</span>],
+                                                  elevation=p[<span class="string">'altitude'</span>],
+                                                  time=strptime(p[<span class="string">'record_time'</span>], timeformat),
+                                                  speed=p[<span class="string">'speed'</span>])
+                          <span class="keyword">for</span> p <span class="keyword">in</span> route]
+
+    <span class="comment"># save to file</span>
+    <span class="keyword">print</span> <span class="string">'saving to %s'</span> % fpath
+    f = open(fpath, <span class="string">'w'</span>)
+    f.write(gpx.to_xml())
+    f.close()
+
+
+<span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:
+    <span class="keyword">import</span> sys
+
+    routeid = sys.argv[-<span class="number">1</span>]
+    <span class="keyword">try</span>:
+        int(routeid)  <span class="comment"># valid route id</span>
+    <span class="keyword">except</span>:
+        <span class="keyword">print</span> <span class="string">'Usage: %s ROUTE_ID'</span> % __file__
+        exit(-<span class="number">1</span>)
+    path = routeid + <span class="string">'.gpx'</span>
+    route2gpx(fetch_route(routeid), path)
+</pre></td></tr></table></figure>
+
+<p><a href="https://gist.github.com/oneyoung/11276837" target="_blank">Gist</a></p>
+<p>最后贴上我的骑记连接: <a href="http://iriding.cc/user/detail/72753.shtml" target="_blank">http://iriding.cc/user/detail/72753.shtml</a>, 欢迎互粉<code>^_^</code></p>
+]]></content>
+    <summary type="html"><![CDATA[<blockquote>
+<p>导出<a href="http://iriding.cc" target="_blank">骑记</a>轨迹, 保存成.gpx格式. 方便各类GPS党制作路书, 或者导入到别的平台.</p>
+</blockquote>
+<ul>
+<li><p>依赖: <code>gpxpy</code></p>
+<ul>
+<li><a href="https://github.com/tkrajina/gpxpy" target="_blank">https://github.com/tkrajina/gpxpy</a></li>
+<li>安装: <code>pip2 install gpxpy</code></li>
+</ul>
+</li>
+<li><p>用法:</p>
+<ul>
+<li><code>./iriding2gpx.py ROUTEID</code></li>
+<li>ROUTEID 是每个轨迹的ID<ul>
+<li>比如这个链接: <code>http://iriding.cc/user/route/207130.shtml</code>, route id 就是207130</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="Sports" scheme="http://oneyoung.im/categories/Sports/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[导出Nook Reader笔记]]></title>
+    <link href="http://oneyoung.im/2014/04/24/%E5%AF%BC%E5%87%BAnook-reader%E7%AC%94%E8%AE%B0/"/>
+    <id>http://oneyoung.im/2014/04/24/导出nook-reader笔记/</id>
+    <published>2014-04-24T02:59:59.000Z</published>
+    <updated>2014-12-11T06:42:34.000Z</updated>
+    <content type="html"><![CDATA[<p>Nook 内置的Reader对epub和文字版的pdf支持还是比较好的(中文就坑爹了, 要自己换个字体进去), 可以直接进行文字高亮操作, 并可以标注笔记.</p>
+<p>此脚本可以直接将笔记导出成txt格式, 并保留页码信息, 方便反查, 适用于对于整理笔记时候, 不想再一个一个字打的懒人 XD</p>
+<p>导出格式: </p>
+<ul>
+<li>文件名: 书名.txt</li>
+<li>导出的笔记按照页码排序</li>
+<li>每条记录格式: <code>-页码- 高亮文本[标注的笔记(如果有的话)]</code></li>
+</ul>
+<p>要求:</p>
+<ul>
+<li>device: Nook已经root, 并且有adb</li>
+<li>PC: adb, 并且可以识别Nook设备.</li>
+</ul>
+<a id="more"></a>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+</pre></td><td class="code"><pre><span class="comment">#!/usr/bin/env python2</span>
+<span class="keyword">import</span> os
+<span class="keyword">import</span> tempfile
+<span class="keyword">import</span> sqlite3
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">DBExportor</span><span class="params">(object)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, db=None)</span>:</span>
+        <span class="keyword">if</span> <span class="keyword">not</span> db:
+            db = self.pull_db()
+        self.conn = sqlite3.connect(db)
+        self.conn.row_factory = sqlite3.Row
+        self.files = {}
+
+    <span class="function"><span class="keyword">def</span> <span class="title">pull_db</span><span class="params">(self)</span>:</span>
+        <span class="string">''' pull Nook Reader's db from device and return the path of that db '''</span>
+        db_name = <span class="string">"annotations.db"</span>
+        pull_db = <span class="string">"/data/data/com.bn.nook.reader.activities/databases/"</span> + db_name
+        db_path = os.path.join(tempfile.gettempdir(), db_name)
+        os.system(<span class="string">"adb pull %s %s"</span> % (pull_db, db_path))
+        <span class="keyword">return</span> db_path
+
+    <span class="function"><span class="keyword">def</span> <span class="title">saverow</span><span class="params">(self, row)</span>:</span>
+        <span class="string">''' save one row to file '''</span>
+        <span class="comment"># get fp</span>
+        fname = os.path.basename(row[<span class="string">'ean'</span>])
+        <span class="keyword">if</span> fname <span class="keyword">not</span> <span class="keyword">in</span> self.files:  <span class="comment"># create outfile if necessary</span>
+            base = os.path.splitext(fname)[<span class="number">0</span>]
+            export_file = base + <span class="string">'.txt'</span>
+            self.files[fname] = open(export_file, <span class="string">'w'</span>)
+        fp = self.files[fname]
+
+        <span class="comment"># composite a record</span>
+        record = <span class="string">"-%s-"</span> % row[<span class="string">"pagenumber"</span>]
+        <span class="keyword">if</span> row[<span class="string">'highlighttext'</span>]:
+            record += <span class="string">' '</span> + row[<span class="string">'highlighttext'</span>]
+        <span class="keyword">if</span> row[<span class="string">'note'</span>]:
+            record += <span class="string">' [Note: %s]'</span> % row[<span class="string">'note'</span>]
+        record += <span class="string">'\n'</span>
+
+        <span class="comment"># write to file</span>
+        fp.write(record.encode(<span class="string">'utf8'</span>))
+
+    <span class="function"><span class="keyword">def</span> <span class="title">export_db</span><span class="params">(self)</span>:</span>
+        c = self.conn.cursor()
+
+        table = <span class="string">"annotations"</span>
+        c.execute(<span class="string">"SELECT * FROM %s"</span> % table)
+        <span class="comment"># since pagenumber is a string, need convert to int</span>
+        rows = c.fetchall()
+        rows.sort(key=<span class="keyword">lambda</span> c: int(c[<span class="string">'pagenumber'</span>]))
+        <span class="keyword">for</span> row <span class="keyword">in</span> rows:
+            self.saverow(row)
+        c.close()
+
+    <span class="function"><span class="keyword">def</span> <span class="title">cleanup</span><span class="params">(self)</span>:</span>
+        self.conn.close()
+        <span class="keyword">for</span> f <span class="keyword">in</span> self.files.values():
+            f.close()
+
+    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span>
+        self.export_db()
+        self.cleanup()
+
+
+<span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:
+    exp = DBExportor()
+    exp.run()
+</pre></td></tr></table></figure>
+
+<p><a href="https://gist.github.com/oneyoung/11240995" target="_blank">https://gist.github.com/oneyoung/11240995</a></p>
+<p><a href="https://gist.githubusercontent.com/oneyoung/11240995/raw/f7f2b7aa8f94e6a94123e03243ca94980185407a/export_nook_notes.py" target="_blank">download this file</a></p>
+]]></content>
+    <summary type="html"><![CDATA[<p>Nook 内置的Reader对epub和文字版的pdf支持还是比较好的(中文就坑爹了, 要自己换个字体进去), 可以直接进行文字高亮操作, 并可以标注笔记.</p>
+<p>此脚本可以直接将笔记导出成txt格式, 并保留页码信息, 方便反查, 适用于对于整理笔记时候, 不想再一个一个字打的懒人 XD</p>
+<p>导出格式: </p>
+<ul>
+<li>文件名: 书名.txt</li>
+<li>导出的笔记按照页码排序</li>
+<li>每条记录格式: <code>-页码- 高亮文本[标注的笔记(如果有的话)]</code></li>
+</ul>
+<p>要求:</p>
+<ul>
+<li>device: Nook已经root, 并且有adb</li>
+<li>PC: adb, 并且可以识别Nook设备.</li>
+</ul>
+]]></summary>
+    
+      <category term="script" scheme="http://oneyoung.im/tags/script/"/>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="Reading" scheme="http://oneyoung.im/categories/Reading/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[读书笔记]沃顿商学院最受欢迎的谈判课]]></title>
+    <link href="http://oneyoung.im/2014/04/20/%5B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0%5D%E6%B2%83%E9%A1%BF%E5%95%86%E5%AD%A6%E9%99%A2%E6%9C%80%E5%8F%97%E6%AC%A2%E8%BF%8E%E7%9A%84%E8%B0%88%E5%88%A4%E8%AF%BE/"/>
+    <id>http://oneyoung.im/2014/04/20/[读书笔记]沃顿商学院最受欢迎的谈判课/</id>
+    <published>2014-04-20T08:06:59.000Z</published>
+    <updated>2014-12-11T06:42:34.000Z</updated>
+    <content type="html"><![CDATA[<p><a href="http://book.douban.com/subject/11589950/" target="_blank">http://book.douban.com/subject/11589950/</a></p>
+<blockquote>
+<p>吐嘈一下, 翻译过来的书名已经吐嘈无力了, 说说内容吧, 这本书注水太严重了, 被各类故事, 例子注水到六百多页. 每个例子后面作者都会加一句, 故事中的主人公现在已是某个公司的高管等等, 背后意思就是我的谈判技巧已被各公司高管广泛使用, 或者是帮助他们走到这一步, 你们看着用吧, 颇有成功学的味道. 吐嘈归吐嘈, 这本书干货还是有的, 容我过滤一下.</p>
+</blockquote>
+<ul>
+<li>谈判的本质是<strong>获得更多</strong>:<ul>
+<li>这并不一定意味着我获得的越多，你得到的就因此而减少了</li>
+<li>更多也不一定意味着金钱更多，它可以指你所珍惜的任何东西变得更多</li>
+<li>双方的<strong>差异</strong>并不是坏事, 相反, 可以将一方重视而另一方不重视的东西拿出来交换.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><p>谈判4个层次:</p>
+<ol>
+<li>迫使对方按照你的意愿行事。(威胁, 使用权力等；虽然有效, 但是也会付出沉重代价)</li>
+<li>让对方按照你的思路思考。(让对方从你的想法中看到合理的利益--“基于利益的谈判”；but human is irrational most of the time. emotion will ruin it)</li>
+<li>让对方理解你想让他们理解的观念。(从对方脑海的图像入手--站在对方角度, 说服对方改变观念, 这是正确的起点)</li>
+<li>让对方感受到你想让他们感受的。(最大杀器: 情感因素)</li>
+</ol>
+</li>
+<li><p>一场谈判，<em>只有你说结束，它才会结束</em>，否则绝不会提前结束。无论对方对你说多少次“不”，多少次和你意见不一致，多少次难为你，通通没有关系。要始终锁定于你的目标（在不会给对方带来困扰的情况下）。</p>
+</li>
+</ul>
+<a id="more"></a>
+
+<ul>
+<li>12条策略:<ul>
+<li><strong>目标至上</strong>: 目标是谈判终极目的, 谈判目标越具体越好。谈判是为了实现你的目标。其余一切都必须服从于这个目标</li>
+<li>谈判的重点是对方<ul>
+<li>无论你利用什么准则，首先要考虑的还是人。要建立关系，尽量扩大谈判范围。如果某一销售员令你感到不舒服，不要从他那里买车，另外再找一个销售员。</li>
+</ul>
+</li>
+<li>情感补偿</li>
+<li>情况各不相同</li>
+<li><em>循序渐进</em>: 在谈判中，无论何时，只要一感知到风险，就应该立刻想到，“要循序渐进”。</li>
+<li>用不等价之物进行交易</li>
+<li>利用对方准则</li>
+<li>坦诚相对/遵守道德</li>
+<li>沟通和表达</li>
+<li>找到真正问题所在<ul>
+<li>你想实现目标的第一个尝试也许是“我想去芝加哥参加求职面试”。你的问题或障碍，也许是“由于下大雪，航班已经取消”。然而，当你从头到尾看完这一模式之后，你也许会意识到，你真正的、潜在的目标并不是你想去芝加哥参加求职面试，而是“我想在某公司找到一份工作”。因此，真正的问题应该是：“他们需要更多有关我的信息来决定是否录用我。</li>
+</ul>
+</li>
+<li>对分歧持包容态度</li>
+<li>列一份清单</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>开诚布公<ul>
+<li>大多数人都不擅长伪装。因为别人迟早会揭穿你，从而失去对你的信任。</li>
+<li>当他人对你坦诚相对的时候，你就会心存感激，无论“坦诚”的是什么。这一点应该能解除你的负担，使你不必再去假装成另一个人。<ul>
+<li>这意味着，如果你天生激进好斗，在谈判一开始就要提醒对方：“如果你觉得我太咄咄逼人的话，但说无妨。”这样做会有什么好处呢？第一，这样做会让对方重新设定期望，从而化解了这个问题。第二，这样做会让你更真实，增强你的可信度。第三，这样做可以使你不必佯装高兴，以一种极不自然的方式伪装自己。接下来，你就可以集中精力去实现自己的目标了</li>
+</ul>
+</li>
+<li>保持透明<em>并非意味着你必须披露一切</em>。<ul>
+<li>它意味着你应该适度披露谈判信息，披露的信息量要以能实现自己的目标和让对方感到舒适为限。</li>
+<li>对其余信息，你可以说：“暂时还不方便告诉大家其他内容。</li>
+<li>信任，但需要核实。这句话在商业关系中也不失为一条很好的建议。在商场中，不要毫无怀疑地奋勇向前，问问自己，这能为他们带来什么；问问自己，你们每一个人放弃了什么；问问自己，你是否令自己陷入了一种容易受伤害的境地</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>最重要的是人:<ul>
+<li>在整个谈判中，你是最无足轻重的一个人。最重要的人是对方，其次是对谈判者极为重要的第三方。</li>
+<li><em>第三方</em>通常指的就是这样的人，无论是真实存在的或想象中的，即谈判者认为自己必须以某种方式遵从的人(比如老板). (当谈判者赞同你, 但不得不考虑第三者时候, 可以联合起来搞定他)</li>
+<li><em>找出决策者</em>。(在上面这个故事中，决策者就是飞机驾驶员。不要在登机口工作人员身上浪费任何时间，因为他们无权改变公司政策)</li>
+<li>当你正在和一个团队进行谈判的时候，你的注意力应该放在这个<em>团队的个体成员身上</em>，而不是他们所代表的公司或文化，或者性别、种族或宗教。</li>
+<li>要让对方将你想要的东西给你，关键是要尊重对方。而不是打压, 羞辱对方.<ul>
+<li>下次当酒店职员或客户服务代表在打电话、加油站的工作人员或其他服务提供者犯了错误或没有准确满足你的要求时，不要责骂他们或对他们态度恶劣。这样做无助于你实现自己的目标。相反，要尊重他们，承认他们有能力做得更好。这与人们的典型反应相反，但却很有效——非常非常有效.</li>
+<li>关键在于不要过于反应激烈，即使对方心情不好。通常，人们之所以抨击你只是因为他们在别处受挫。不要把这归结为你的原因。告诉他们，你很抱歉他们这一天过得不愉快。</li>
+</ul>
+</li>
+<li>必须让对方真正觉得这个谈判关注的是他们以及他们的需求和看法，而<em>不是你的需求和看法</em>。(交通违章时, 警官想要确定的是你已经吸取了教训)</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>信任:<ul>
+<li>定义: 信任是一种因对方会保护你而产生的安全感。</li>
+<li>事实上，尽管信任是最佳谈判工具，但对成功的谈判而言，你并<em>不需要信任</em>。</li>
+<li>成功的谈判需要一些更基本的要素: <strong>承诺</strong>, 获得承诺的其他方式还有合同、第三方、各种动机等等</li>
+<li><em>共同的敌人</em>:<ul>
+<li>要想使人们更紧密地团结在一起，最迅速、最强有力的方法就是为大家找出共同的敌人</li>
+<li>“共同的敌人”是一个统一的单个敌人吗？如果这个共同的敌人具有多样化特点，那它就不是一个正当合理的共同敌人。</li>
+<li>“我真的很希望黑石公司能在伦敦接待沃顿商学院的这群学生，”弗洛朗说。“我们怎样确定你们已抵达伦敦了呢？”弗洛朗立刻接到了黑石公司的电话回复，他们承诺会接待这群学生。弗洛朗，现在一家医疗保健咨询公司的合作伙伴，没有*责怪黑石公司，而是将矛头指向了一个共同的敌人：当时与黑石公司联系不上 [Note: dont blame others. you can come up with a common enemy.]</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>观念和沟通(了解对方脑海中的想法):<ul>
+<li>谈判失败最大原因: 沟通失败. --&gt; 沟通失败一个最大原因: <em>误解</em></li>
+<li>“<em>基本归因错误</em>”: 你以为其他所有人对待事物的反应方式都和你一样</li>
+<li>从现在起，当你与某人发生冲突的时候，问问自己下列问题：（1）我的看法是什么？（2）对方的看法是什么？（3）是否存在观点不一致的情况？（4）如果是，原因是什么</li>
+<li>在谈判中，几乎你所说的一切都应该以<em>提问</em>的方式表现出来。这有助于你搞清楚对方是否真的打算把自己的意图告诉你<ul>
+<li>如果对方侮辱并威胁你，正确的反应是：“<em>请告诉我为什么</em>。” 你对一个人了解越多，就越能明白他的想法</li>
+</ul>
+</li>
+<li>人们往往无法表达自己的感情。你的任务就是找出隐藏在人们<em>言论背后的真正想法</em>。</li>
+<li>如果你<em>仔细观察和倾听</em>，大多数人都给出用以说服他们的方法。<ul>
+<li>如果对方说：“我不可能在这个时候为你这样做。”你就应该问：“那你什么时候能这样做呢？”或“还有谁能这样做呢？”</li>
+<li>如果对方说：“这是我们的标准合同。”你就应该问：“贵方曾有过例外情况吗？”</li>
+<li>如果对方说：“我们从来不议价。”你就应该问：“好吧，那你们议什么呢？”</li>
+<li>要注意对方的每一个用词、每一个语调的变化和每一个举动</li>
+</ul>
+</li>
+<li>跨文化中介的职责不是去解决问题，而是去<em>帮助双方进行沟通</em>。其目的是帮助双方理解彼此的看法，发送信号并增进了解</li>
+<li><em>争论对错于谈判毫无意义, 要始终专注于目标</em><ul>
+<li>指责怪怨和施以惩罚是人类的自然反应。然而，从心理学的角度而言，对方很难同意接受惩罚。即使承认自己有错也很难，因为这会让你在自己和他人面前显得有些丢脸。</li>
+<li>最好能问一些这样的问题：我们现在该怎么办？我们怎样才能阻止这种情况再次发生呢</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>利用对方的准则:<ul>
+<li>这种技巧对那些难对付的谈判者尤为有效。</li>
+<li>我不是在谈论“客观”准则，而是<em>被对方认为公平合理的准则</em></li>
+<li>利用准则可能会对他人造成伤害。利用准则十分有效，这一点毫无疑问</li>
+<li><em>折中</em>通常是一种既偷懒又无效的谈判方式。<ul>
+<li>容易妥协的人得到的更少。他们往往追求速度，而不是质量。他们采取“折中”方案。事务繁忙的人往往属于这一类型。</li>
+<li>不要接受模棱两可的回答, 这个词几乎毫无意义</li>
+</ul>
+</li>
+<li>你可能会说：“这不合常理。”<em>谈判最重要的并不是合理性，而是对方的感受和看法</em>。<ul>
+<li>这也是为什么准确描述（呈现信息的方式）如此重要的原因。我们可以通过准确描述来让世界变得更加公平</li>
+</ul>
+</li>
+<li>在指出对方行为不当时有一个关键——这也是所有谈判技巧中最有力的谈判技巧之一，<em>绝对不要让自己成为问题焦点</em>。</li>
+<li><em>收起争强好胜心</em>: 你应该关注的是整个谈判过程的细节, 而不是一心想获胜.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>不等价交易:<ul>
+<li>这个技巧就是利用价值不等之物进行交易。谈判各方衡量价值的方式各不相同，对价值大小所持看法往往也不同。==&gt; <em>基于差异</em></li>
+<li>专注于对方的需求，就可以远远抛开交易中金钱至上的观念。那些无形的东西将会取代对金钱的过度索取</li>
+<li>在大多数谈判中，我的目标只有一个，可<em>需求却有很多</em>，这些需求可以达到目的.<ul>
+<li>比方说你想加薪，但公司却无法给你加薪。你真正的目标应该是过上更好的生活。因此，也许公司可以和你连名签署一笔贷款，让你住上一个条件更好、每月还贷更少的房子；</li>
+</ul>
+</li>
+<li>当你在雇主那里接受最后一轮面试的时候，对方已经肯定你能胜任这份工作。他们此时要找的不是你的硬实力，而是你的软实力，那些无形之物</li>
+<li>什么东西让你不花一分钱却可以满足我的需求，什么东西让我不花一分钱却可以满足你的需求？</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>情绪: 谈判时, <em>对方不理性情绪化</em>会导致无法倾听别人的想法, 因此别人就无法说服他们. ==&gt; 尽力体会对方的情感世界, 做到感同身受.<ul>
+<li>情绪策略的目的是用来加强人际关系和业务关系。</li>
+<li>如果对方不喜欢你，也不相信你，他们就听不进你说的话。对方之所以在听，只是因为你一直在对他们滔滔不绝，“嗯啊”并不代表他们听进了你所说的每一个字。当人们感到愤怒、疑惑、或不确定的时候，从生理学的角度而言，他们就更听不进对方所说的话了</li>
+<li><em>情感补偿</em>:<ul>
+<li>情感补偿是某种能令对方感觉更舒服的行为：一个同情、一个道歉、一个让步。它还包括各种无形的东西，如尊重、给对方面子、对对方价值的肯定评价</li>
+<li>必须搞清楚对方需要什么样的情感补偿。(“我不想让你来解决我的问题，我只是想让你听听她们的意见。”对许多女性而言，倾听她们说话就是对她们的情感补偿。)</li>
+<li>对方有可能将什么视为一种情感补偿呢？要想找出答案，必须密切注意对方脑海中的想法。他们的世界观是什么？他们的需求和看法是什么？什么样的表达方式会令他们愿意倾听？他们需要我们作出让步吗？如果需要，是什么样的让步呢？是一个简单的道歉吗？是一个需要花心思的道歉吗？如果不道歉，送花行吗？换句话说，无论对人还是对形势，<em>情感补偿一定要具体明确</em></li>
+<li>你越是要求他们冷静，他们就越暴躁易怒。让他们冷静下来的要求忽视了他们情绪的正常发泄。当人们感到自己不受重视的时候，他们就会变得更加情绪化</li>
+<li>你必须全部接受他们的无礼言论或情绪，以此作为切入点。因为需要情感补偿的人几乎不会去倾听别人说话。只有借助一扇小小的窗口才能让他们去倾听：与他们的情绪感受有关的信息。</li>
+<li>只有当对方愿意倾听的时候，你才有办法将他们从负面情绪中拉回来。</li>
+<li>一个办法是让对方谈谈自己的情况，这样他们的情绪就可以得到发泄或表达。试着猜一猜哪些事情正困扰着对方，对方往往会告诉你你猜得是否对。</li>
+<li>你还要能识别这样一种情况，即对方利用情感操纵谈判并耍手段。我对泛泛的赞扬之词往往并不相信。在我看来，“你是个很棒的老师”仅仅是随口一说的一句话。“在哪方面很棒呢？”这是我想知道的。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>调解人:<ul>
+<li>调解人<em>只是一名推动者</em>，他没有任何决策权，其目标是帮助他人达成协议。即使你认为一方有理，你的角色也不允许你偏向这一方。你可以提问，可以询问有关准则的情况，但就是不能偏向任何一方</li>
+<li>作为调解人，你实际上是双方共同的密友。如果双方都信任你，他们就会在私下告诉你很多信息。你不能将这些信息告诉另一方，除非向你披露信息的一方希望你这样做。不过，你得到的这些额外信息也许有助于你找到引起问题的根源。也许双方是因为陈年旧事而不能善罢甘休</li>
+<li>如果调解进展得不顺利或者你发现有一方行事不公，你依然不能偏向任何一方！否则就会有损你的声誉。<em>如果双方不按你制定的方法行事，那就退出调解或威胁说要退出调解</em></li>
+<li>团体: 让人们团结起来。<em>先团结那些想改变做事方式的人</em>。让越来越多的人参与其中。</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>与孩子的谈判:<ul>
+<li>孩子的思维方式基本上分为这样两类：自己喜欢的东西和自己不喜欢的东西。<ul>
+<li>为了获得这些东西，孩子通常都会愿意拿其他东西进行交换。这并非在收买</li>
+</ul>
+</li>
+<li>哭闹是一种不愉快的表现，是受到挫折的一个迹象，它还会令身体感到不适。<ul>
+<li>关键是要给孩子提供更多使用“<em>上策</em>”的机会：赋予他们更多权力、增强他们的控制感、给予他们情感补偿、帮助他们满足需求、理解他们当前的想法</li>
+<li>如果父母能增强孩子的权力感和安全感，他们就会心甘情愿地为此放弃很多东西。</li>
+<li>如果你想让自己的孩子养成刷牙的习惯，最好是在床上放5支牙刷和5支牙膏，而不要只是简单地命令他必须刷牙。告诉你的孩子，他有权选择使用哪支牙刷和哪支牙膏。</li>
+</ul>
+</li>
+<li>这里有一条十分重要的黄金法则：孩子总是看到什么就学什么，之后才会懂得其中的道理。</li>
+</ul>
+</li>
+</ul>
+]]></content>
+    <summary type="html"><![CDATA[<p><a href="http://book.douban.com/subject/11589950/" target="_blank">http://book.douban.com/subject/11589950/</a></p>
+<blockquote>
+<p>吐嘈一下, 翻译过来的书名已经吐嘈无力了, 说说内容吧, 这本书注水太严重了, 被各类故事, 例子注水到六百多页. 每个例子后面作者都会加一句, 故事中的主人公现在已是某个公司的高管等等, 背后意思就是我的谈判技巧已被各公司高管广泛使用, 或者是帮助他们走到这一步, 你们看着用吧, 颇有成功学的味道. 吐嘈归吐嘈, 这本书干货还是有的, 容我过滤一下.</p>
+</blockquote>
+<ul>
+<li>谈判的本质是<strong>获得更多</strong>:<ul>
+<li>这并不一定意味着我获得的越多，你得到的就因此而减少了</li>
+<li>更多也不一定意味着金钱更多，它可以指你所珍惜的任何东西变得更多</li>
+<li>双方的<strong>差异</strong>并不是坏事, 相反, 可以将一方重视而另一方不重视的东西拿出来交换.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><p>谈判4个层次:</p>
+<ol>
+<li>迫使对方按照你的意愿行事。(威胁, 使用权力等；虽然有效, 但是也会付出沉重代价)</li>
+<li>让对方按照你的思路思考。(让对方从你的想法中看到合理的利益--“基于利益的谈判”；but human is irrational most of the time. emotion will ruin it)</li>
+<li>让对方理解你想让他们理解的观念。(从对方脑海的图像入手--站在对方角度, 说服对方改变观念, 这是正确的起点)</li>
+<li>让对方感受到你想让他们感受的。(最大杀器: 情感因素)</li>
+</ol>
+</li>
+<li><p>一场谈判，<em>只有你说结束，它才会结束</em>，否则绝不会提前结束。无论对方对你说多少次“不”，多少次和你意见不一致，多少次难为你，通通没有关系。要始终锁定于你的目标（在不会给对方带来困扰的情况下）。</p>
+</li>
+</ul>
+]]></summary>
+    
+      <category term="读书笔记" scheme="http://oneyoung.im/tags/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Reading" scheme="http://oneyoung.im/categories/Reading/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[读书笔记]经验的疆界]]></title>
+    <link href="http://oneyoung.im/2014/04/16/%5B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0%5D%E7%BB%8F%E9%AA%8C%E7%9A%84%E7%96%86%E7%95%8C/"/>
+    <id>http://oneyoung.im/2014/04/16/[读书笔记]经验的疆界/</id>
+    <published>2014-04-15T23:49:57.000Z</published>
+    <updated>2014-12-11T06:42:34.000Z</updated>
+    <content type="html"><![CDATA[<p><a href="http://book.douban.com/subject/6687032/" target="_blank">http://book.douban.com/subject/6687032/</a></p>
+<blockquote>
+<p>本书论点: 个人和组织尽管渴望从经验中获得智慧, 但是从经验当中作出的推断往往具有误导性.</p>
+</blockquote>
+<h3 id="-1-">第1章  追求智慧</h3>
+<ul>
+<li><p>体验式学习: 人类通过体验式学习来掌控生活 -- 为了改变命运, 个人和组织尝试从经验中学习.</p>
+</li>
+<li><p>提高与环境匹配度--&gt; 更好的生存下去:</p>
+<ul>
+<li>适应环境</li>
+<li>改变环境: 适应是弱者的事情, 强者制定游戏规则, 让别人适应自己. --&gt; 有可能导致适应力衰退(强者也有必须适应环境的时候)</li>
+</ul>
+</li>
+<li><p>智慧的两个要素:</p>
+<ul>
+<li>有效的<strong>适应环境</strong></li>
+<li>优雅的<strong>诠释经验</strong></li>
+</ul>
+</li>
+<li><p>从经验中获取智慧可以分成2种模式:</p>
+<ul>
+<li>&quot;低智(low-intellect)&quot; 学习: 在<em>不求理解因果结构</em>的情况下, <em>复制</em>与成功相连的行动.</li>
+<li>&quot;高智(high-intellect)&quot; 学习: 努力<em>理解因果结构</em>, 并用其指导以后的行动.</li>
+<li>高智和低智学习<em>没有优劣之分</em>, 各有可取之处, 各有局限性.</li>
+</ul>
+</li>
+</ul>
+<a id="more"></a>
+
+<h3 id="-2-">第2章  通过复制成功而学习 (低智学习)</h3>
+<ul>
+<li><p>复制成功<em>过程很简单</em>:</p>
+<ol>
+<li>从所有可选行动中选择一个付诸实施</li>
+<li>记录结果, 评定成败</li>
+<li>复制与成功相连的行动, 回避与失败相连的行动.</li>
+</ol>
+</li>
+<li><p>复制成功的三种典型机制(方式):</p>
+<ol>
+<li>试误(trial-and-error): <em>亲自摸索</em>, 不断尝试, 选择成功的行动, 回避失败的行动.</li>
+<li>模仿(imitation): 复制<em>他人</em>的经验</li>
+<li>天择(selection): 进化论</li>
+</ol>
+</li>
+<li><p>复制成功的问题(大都源自学习环境和适应机制的性质, 而不是来自学习者的认知习惯):</p>
+<ol>
+<li>历史是复杂的</li>
+<li>历史充满随机不确定性</li>
+<li>众多选项的潜在结果分布受到历次所做选择以及历次变现结果的影响</li>
+<li>经验抽样率受样本结果的影响</li>
+</ol>
+</li>
+<li><p><em>学习的3个层面</em>:</p>
+<ul>
+<li>学习做什么: 寻找好的技术, 战略或合作伙伴</li>
+<li>学习如何做: 精炼并改进技术, 能力等</li>
+<li>学习期盼什么: 调整绩效目标</li>
+</ul>
+</li>
+<li><p>人类偏爱高智历史解释和高智学习, 有可能把简单的复制成功(低智学习)归结为高智学习. (过度解释, 经济学各类假设理论等...)</p>
+</li>
+</ul>
+<h3 id="-3-">第3章  通过故事和模型来学习 (高智学习)</h3>
+<ul>
+<li>高智学习: 要求理清事物的因果关系, 并用叙事(自然语言), 模型(符号语言)或者理论阐述出来.</li>
+<li><p><strong>故事和模型</strong> ==&gt; 目的: &quot;最大可理解复杂性&quot;</p>
+<ul>
+<li>理解事物的一个迫切要求 -- 描述经验的因果基础.</li>
+<li>把经验的<em>模糊性</em>和<em>复杂性</em>转化为一种<ul>
+<li><em>详尽</em>到足以令人感兴趣</li>
+<li><em>简单</em>到足以让人理解</li>
+<li><em>可信</em>到足以让人接受</li>
+</ul>
+</li>
+<li>经验故事和模型是<em>希望被社会证实为真相的虚构</em>. 真相是不可接近的.</li>
+</ul>
+</li>
+<li><p>组织故事和模型, 围绕着四大神话主题而构建的(而四大神话, 每个都有一个反主题):</p>
+<ol>
+<li>理性(rationality): 人类遵循结果逻辑采取行动, 为行动辩护, 人类精神由此得到明确表达.</li>
+<li>层级(hierarchy): 问题可以分解成一层层的子问题, 行动可以分解成一层层的子行动.</li>
+<li>领导者个人举足轻重(idividual leader significance): 任何历史故事要想有意义, 必须和伟人扯上关系；组织的历史是领导者根据个人意志创造的.</li>
+<li>历史有效(historical efficiency): 历史遵循的路线, 通向唯一的均衡. (历史规律一直会有效, 优胜劣汰)</li>
+</ol>
+</li>
+</ul>
+<p>==&gt; 这些神话下面, 隐藏着一个更大的神话: <strong>人类举足轻重</strong> --&gt; 人类的骄傲自大, 自负</p>
+<ul>
+<li>经验故事和模型的作用: 真理, 正义, 美<ul>
+<li>真理: 真相是模糊的, 人们口中所谓的真相, 不过是大多数人共同的想法. (人们往往相信流传很广的经验, 但是相信的深度和分享的广度不能保证故事的效度)</li>
+<li>正义: 与其说是在努力反映现实(效度), 不如说是在努力达成共识(信度). (正义很难定义, 具体的故事和模型, 是获得这种共识的工具)</li>
+<li>美: 美不一定是真的, 真的不一定是美.</li>
+</ul>
+</li>
+</ul>
+<h3 id="-4-">第4章  产生新事物</h3>
+<ul>
+<li>这里谈论的新事物是对整体而言的新事物, <em>局部创新的一个主要特征就是孤陋寡闻</em>.</li>
+<li><p><em>新事物</em>是偏离成规定见的事物, 而<em>创造物</em>是后来被判定为成功的新事物.</p>
+</li>
+<li><p>对新想法的<em>两个假定</em>:</p>
+<ul>
+<li>大多数新想法是坏想法</li>
+<li>没有可靠的方法预测哪个新想法会成功</li>
+</ul>
+</li>
+<li><p>适应倾向于消灭变异, 而模仿会加强这一倾向. --&gt; 开发赶尽探索. (新事物带来大量的负面效果和少量的正面效果, 性价比太低)</p>
+</li>
+<li><p>新生事物如何存活:</p>
+<ul>
+<li><em>越轨理论</em>: 随机因素造成有好有坏的结果. 创造物不多是从愚蠢总体中随机抽取的个体.</li>
+<li>越轨源自与周密完善社会制度和社会规范的分裂.</li>
+</ul>
+</li>
+<li><p>组织如何制造新事物产生的条件:</p>
+<ul>
+<li>成功带来组织宽裕(organizational slack): 资源过剩, 鼓励尝试. 新事物(大部分是愚蠢的)是宽裕的副产品, 而宽裕是高效适应的副产品.</li>
+<li>管理者狂妄自大(managerial hubris): 偏执的管理者会过分支持有风险的想法(即使它是愚蠢的)</li>
+<li>对新想法过度乐观(overly optimistic hopes for novel ideas)</li>
+</ul>
+</li>
+<li><p>搭乘(hitchhiking)效应: 一个几乎总是失败的属性(乌托邦智慧)搭乘一个经常而且明显成功的属性(常规智慧).</p>
+</li>
+<li><p>新事物工程学: 新事物大部分情况下的作用是很糟糕的, 但是, 一旦发现了创造物, 效用是无可限量的.</p>
+<ul>
+<li>问题变成了: 如何在尝试新事物和遵循以往经验上取得一个平衡.</li>
+<li>创造物的<em>随机性</em>: 划分多个部门, 尽可能多元化, 增加出现的概率.</li>
+<li>创造物的<em>低概率性</em>: 不损害收益前提下, 降低尝试新想法的成本. (限制赌注的大小)</li>
+</ul>
+</li>
+</ul>
+<h3 id="-5-">第5章  经验的启示</h3>
+<ul>
+<li><p>经验作为有用的老师(经验的适用范围):</p>
+<ul>
+<li>重复性情景, 涉及具体的特殊知识, 提供相对清晰的信号, 相对低的噪音和相对大的样本--为有效推断和明显的学习提供充分的信息.</li>
+<li><em>熟能生巧的独立狭小领域反复练习</em></li>
+</ul>
+</li>
+<li><p>经验作为不完美的老师(经验的局限性):</p>
+<ol>
+<li><em>经验的鲜活性</em>: 学习者把自己的直接经验信息看得比来自其他渠道的信息重.(一朝被蛇咬, 十年怕井绳)</li>
+<li>启示的模糊性: 经验必须转化成启示, 这个转化困难又没有止境.</li>
+<li>诠释的灵活性: 模糊的经验, 通过灵活的诠释会获得不同的意义. 不同角度, 得出的结论很不一样.</li>
+</ol>
+</li>
+<li><p>故事讲述和模型构建是<strong>人类的基本活动</strong>, 人类通过这两种活动形成我们独有的智慧, 彰显我们物种的智慧性.</p>
+<ul>
+<li>创造并装饰没有实际用途的知识.</li>
+<li>三个功能(理解经验, 与其说是为了生活, 不如说就是生活):<ol>
+<li>用有趣的方式对人类的存在赋予意义</li>
+<li>对人类的意图进行合理化</li>
+<li>展现人类的想象力</li>
+</ol>
+</li>
+</ul>
+</li>
+</ul>
+]]></content>
+    <summary type="html"><![CDATA[<p><a href="http://book.douban.com/subject/6687032/" target="_blank">http://book.douban.com/subject/6687032/</a></p>
+<blockquote>
+<p>本书论点: 个人和组织尽管渴望从经验中获得智慧, 但是从经验当中作出的推断往往具有误导性.</p>
+</blockquote>
+<h3 id="-1-">第1章  追求智慧</h3>
+<ul>
+<li><p>体验式学习: 人类通过体验式学习来掌控生活 -- 为了改变命运, 个人和组织尝试从经验中学习.</p>
+</li>
+<li><p>提高与环境匹配度--&gt; 更好的生存下去:</p>
+<ul>
+<li>适应环境</li>
+<li>改变环境: 适应是弱者的事情, 强者制定游戏规则, 让别人适应自己. --&gt; 有可能导致适应力衰退(强者也有必须适应环境的时候)</li>
+</ul>
+</li>
+<li><p>智慧的两个要素:</p>
+<ul>
+<li>有效的<strong>适应环境</strong></li>
+<li>优雅的<strong>诠释经验</strong></li>
+</ul>
+</li>
+<li><p>从经验中获取智慧可以分成2种模式:</p>
+<ul>
+<li>&quot;低智(low-intellect)&quot; 学习: 在<em>不求理解因果结构</em>的情况下, <em>复制</em>与成功相连的行动.</li>
+<li>&quot;高智(high-intellect)&quot; 学习: 努力<em>理解因果结构</em>, 并用其指导以后的行动.</li>
+<li>高智和低智学习<em>没有优劣之分</em>, 各有可取之处, 各有局限性.</li>
+</ul>
+</li>
+</ul>
+]]></summary>
+    
+      <category term="读书笔记" scheme="http://oneyoung.im/tags/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Reading" scheme="http://oneyoung.im/categories/Reading/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[读书笔记]自卑与超越]]></title>
+    <link href="http://oneyoung.im/2014/03/29/%5B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0%5D%E8%87%AA%E5%8D%91%E4%B8%8E%E8%B6%85%E8%B6%8A/"/>
+    <id>http://oneyoung.im/2014/03/29/[读书笔记]自卑与超越/</id>
+    <published>2014-03-29T10:08:39.000Z</published>
+    <updated>2014-12-11T06:42:34.000Z</updated>
+    <content type="html"><![CDATA[<p><a href="http://book.douban.com/subject/1844607/" target="_blank">http://book.douban.com/subject/1844607/</a></p>
+<h3 id="chapter-1-">Chapter 1: 生活的意义</h3>
+<blockquote>
+<p>生活的意义在于和他人<strong>合作</strong>, 解决人类面临的职业, 社会和性的问题. 缺乏合作的人会把自己封闭起来, 产生精神问题.</p>
+</blockquote>
+<ul>
+<li>-9- 我们一直是以自己赋予现实的意义来感受现实，我们所感受的不是现实本身，而是现实被我们所赋予的意义，或者说是我们的<strong>感受是我们自己对现实的解释</strong>。</li>
+<li>-10- 每一种个体自认为正确的生活的意义可能多少都含有错误的成分在里头，没有人拥有绝对正确的生活意义；但同时我们也会发现，无论是哪一种生活的意义，只要有人持这种态度，它也绝不会是完全错误的。</li>
+<li>-10- 一个人的现实生活不得不受这<strong>三条事实的制约</strong>，他所面临的问题也都是这些事实所造成的。<ol>
+<li>我们人类居住在地球这个贫瘠星球的表面上，我们没有办法脱离地球的表面去讨生活。我们必须不停地奋斗，以找寻更为完美的解答，这个解答必须针对“我们被束缚于地球这个贫瘠星球的表面上”这件事实，以及我们居住的环境所带给我们的种种利益和灾害。</li>
+<li>我们自己并不是人类种族的唯一成员，我们四周还有其他人，只要我们活着，就必然要和他们发生联系。</li>
+<li>人类同时还被另一种事实所束缚：人类有两种性别，个体和人类集体生命的存续都必须依赖于这一事实。</li>
+</ol>
+</li>
+<li>-12- 三种事实带来了三种问题, 即人类不得不面对的<strong>职业、社会和性</strong>这三个问题:<ol>
+<li>如何谋求一种职业，以使我们在地球的天然限制之下得以生存；</li>
+<li>如何在我们的同类之中获取地位，以使我们能互助合作并分享合作的利益；</li>
+<li>如何调整我们自身，以适应“人类存在有两种性别”和“人类的延续和扩展，有赖于我们的爱情生活”等事实</li>
+</ol>
+</li>
+<li>-12- <strong>个体心理学（Individual Psychology）</strong>: 阿德勒所创立的心理学派, 也就是本书说推崇的精神, 注重人类间的积极关系. <a href="http://baike.baidu.com/view/2779639.htm" target="_blank">Ref</a></li>
+<li>-13- 所有<strong>真正的“生活意义”</strong>的标准是：它们都是<strong>共同的意义</strong>，也就是说，它们是别人能够分享的意义，也是能被别人认定为有效的意义。<ul>
+<li>能够成功地应付人类生活中所存在的问题的人，他的行为方式明显地告诉我们：生活的意义在于对别人发生兴趣以及互助合作</li>
+<li>假如一个人在他赋予生活的意义里，希望对别人能有所贡献，而且他的情感也都指向了这个目标，他自然会把自己的人格塑造到理想型态———一种对他人、对社会都有贡献的状态</li>
+<li>生活的意义在于<strong>对人类全体发生兴趣并与之合作为我们的世界作出贡献，他们也正在努力地培养着爱情和对社会的兴趣</strong>。</li>
+</ul>
+</li>
+</ul>
+<p><a id="more"></a></p>
+<ul>
+<li><p>-12- <em>错误的&quot;意义&quot;</em>:</p>
+<ul>
+<li>他的活动范围一定非常<em>狭窄</em>，这与他对生活的意义的判断有关：<em>生活的意义对他来讲是保护自己免受伤害</em>，因而他倾向于把自己封闭起来，避免和别人接触</li>
+<li>之所以失败，就是因为他们缺乏归属感和社会兴趣</li>
+<li>事实上，属于私人的意义是完全没有意义的，意义只有在和他人交往时才有存在的可能。</li>
+<li>-20- 这三种情境———器官缺陷，被娇纵，被忽视———最容易使人将错误的意义赋予生活。</li>
+<li>-17- 这三种人对童年时期经验的解释都会表现在他们的行为里。只要他们没有改变自己的解释，他们的行为就不会有所改变。</li>
+</ul>
+</li>
+<li><p>-20- 要了解个人赋予自己和生活的意义，最大的帮助是来自其<strong>记忆</strong>。</p>
+<ul>
+<li>最早的记忆之所以重要，有两个原因。<ul>
+<li>第一，个人对自身和环境的基本估计均包含于其中，它是个人将他的外貌、他对自己最初的整个概念，以及别人对他的要求等等第一次综合起来的结果。</li>
+<li>第二，它是个人主观的起点，也是他为自己所作记录的开始。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>-22- <strong>合作</strong>也是我们拥有的防止神经病倾向发展的唯一保障</li>
+</ul>
+<h3 id="chapter-2-">Chapter 2: 心灵与肉体</h3>
+<blockquote>
+<p>我们所有的努力都是为了获得<strong>安全感</strong>, 人们会为了<em>适应生活</em>而<strong>发展出相应的感情</strong>以达到这个目的.</p>
+</blockquote>
+<ul>
+<li>-25- 我们<strong>所有的努力</strong>都是为要达到一种<strong>能使我们获得安全感的地位</strong>，这种感觉是：生活中各种困难都已经被克服，而且我们在环绕着我们的整个情境中，也已经得到最后的安全和胜利</li>
+<li>-26- 安全的目标是全体人类所共有的，但是有些人认错了安全所在的方向，而其固执的动作，则将他们带向堕落之途</li>
+<li>-27- <strong>感情绝对不会和生活方式互相对立</strong>，目标一旦订下，感情就会为了要获得它而适应自身; 每一种身体或心灵的表现都是以天生的材料为基础，但是，<em>我们的注意力却在于如何应用这些材料，以获取既定的目标</em>。这就是心理学研究的唯一真正对象<ul>
+<li>习惯于被母亲伴同、帮助、保护的孩子，很可能会发现：焦虑———不管其来源如何———是控制自己母亲的有效武器。</li>
+<li>愤怒是控制一个人或一种情境的工具之一。</li>
+<li>用悲哀来达成其优越感目标的人，并不会因为其目标的达成而感到快活或满足。他<em>只有在不幸的时候才会快乐</em>。</li>
+<li>感情是可以随需要而呼之即来或挥之即去的。一个对群众患有恐惧症的人，当他留在家里，或指使另一个人时，他的焦虑感就会消失掉。所有神经病患者都会避开生活中不能使他们感到自己是征服者的部分</li>
+<li>-32- 夜尿症所要达成的目的通常是：吸引别人的注意力，使别人听从他，要别人在晚上也像白天一样地注意他</li>
+</ul>
+</li>
+<li>-30- <em>在第五年结束时</em>，他的人格已经成形。他赋予生活的意义、他追求的目标、他趋近目标的方式、他的情绪倾向等等，也都已经固定。以后它们虽然也可能改变，但在改变它们之前，他必须先从儿童期固定成形时所犯的错误中解脱出来。正如他以前所有的表现都和他对生活的解释互相配合一样，现在他的新表现也会和他的新解释密合无间<ul>
+<li>如果我们留心他观察和谛听的方式，以及能吸引他注意力的事物，我们便会对他有充分的了解。</li>
+<li>身体器官有缺陷的儿童在心灵的发展上比其他人遭遇了更多的阻碍，他们的心灵也较难影响、指使并命令他们的肉体趋向优越的地位。他们需要用较多的心力并且必须比别人更集中心意，才能达成相同的目标。所以，他们的心灵会变得负荷过重，而他们也会变得以自我为中心。</li>
+<li>只有在他们眼前有一个可供追逐的目标，而这个目标的达成又比挡在前面的障碍对他们更为重要，他们才会继续勇敢前进。</li>
+<li>假如他们的想法只是担心他们不如别人，而没有其他目标，那么他们就不会真正有所进步。</li>
+<li>只有决心要对团体有所贡献而兴趣又不集中于自己身上的儿童，才能成功地学会补偿其缺憾之道。只想避开困难的儿童，必将继续落于他人之后。</li>
+<li>如果一个孩子想要集中全力来克服他的困难，在他身外必须有一个他要全力以赴的目标，这个目标是以他对现实的兴趣对别人的兴趣以及对合作的兴趣为基础的</li>
+</ul>
+</li>
+<li>-38- <strong>个人的情绪和思想必定会全部和生活样式调和一致</strong>。如果我们看到某种情绪很明显地引起了困难，而且违反了个人的利益，只想改变这种情绪是完全没有用的。它是个人生活方式的正当表现，只有改变其生活方式，才能将之斩草除根</li>
+</ul>
+<h3 id="chapter-3-">Chapter 3: 自卑感与优越感</h3>
+<blockquote>
+<p>无法应对问题 --&gt; 产生自卑 --&gt; 为摆脱这种情绪, 获得优越感 --&gt; 1. 自卑激励人类解决问题 2. 发展出不健康的情绪, 以获取优越感.
+对不健康的优越感追求: 源于<em>错误的目标</em></p>
+</blockquote>
+<ul>
+<li><p>自卑:</p>
+<ul>
+<li>定义: 当个人面对一个他<strong>无法应付的问题</strong>时，他表示他绝对无法解决这个问题，此时出现的情绪便是自卑情绪</li>
+<li>特点: 没有人能长期地忍受自卑之感，它一定会使他<strong>采取某种行动来解除自己的紧张状态</strong>。</li>
+<li>正作用: 如果我们一直保持着我们的勇气，我们便能以直接、实际而完美的唯一方法———改进环境———来使我们脱离这种感觉<ul>
+<li>-44- 我们已经说过：自卑感本身并不是变态的，它们<strong>是人类地位之所以增进的原因</strong>。</li>
+<li>-44- 事实上，依我看来，我们人类的全部文化都是以自卑感为基础的</li>
+</ul>
+</li>
+<li>负作用: 以<strong>争取优越感的补偿动作</strong>必然会同时出现，但是其目的却不在于解决问题, 而是指向<strong>生活中无用的一面</strong>, 比如逃避问题. <em>目标却是一样的———获取优越感，而不是努力改进其情境</em>。<ul>
+<li>-42- 这种病征表现出一种信念：“我不能走得太远。我必须留在熟悉的环境里。生活中充满了危险，我必须避免面对它们。”</li>
+<li>-42- 他想要和生活中必须面临的现实问题保持距离，并将自己局限于他觉得能够主宰的环境之中</li>
+<li>-44- 如果我们问：“为什么这么害怕行为不当呢？”对这问题的唯一答案是：“因为这些人把他们自己的成功目标订得太高了！</li>
+<li>-40- ”在举止间处处故意要凌驾于他人之上的人，我们不得不怀疑：在他背后是否有需要他做出特殊努力才能消除的自卑感存在</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>追寻优越感:</p>
+<ul>
+<li>Life is hard, 我们永远都无法达到我们生命的最高目标. 正因为如此, 给了我们持续不断奋斗的意义.<ul>
+<li>-45- 如果每件事都能够被预料到，每桩事物都能够预先被计算出来。明日不会带来意料之外的机会，对未来，我们也没有什么可以寄望。事实上，我们<em>生活中的乐趣主要是来自我们缺乏肯定性</em></li>
+</ul>
+</li>
+<li>-46- 正常的人对自己的问题会怀有<strong>逐渐改进的解决之道</strong>，他能接受新问题，也能提出新答案。因此，他有对别人贡献的能力，他不甘落于人后而增加同伴的负担，他不需要，也不要求特别的照顾。他能够依照他的社会感觉独立而勇敢地解决他的问题. -48- 事实上，一个人愈健康、愈接近正常，<em>当他的努力在某一特殊方向受到阻挠时，他愈能另外找寻新的门路</em>。只有神经病患者才会认为他的目标的具体表现是：“我必须如此，否则我便无路可走了。 </li>
+<li>-49- 优越感的目标一旦被具体化，个人便不会在生活的样式中犯错误。<strong>个人的习惯和病征，对达到其具体目标而言，都是完全正确的，它们都完美无疵</strong>.<ul>
+<li>每一个问题儿童, 每一个精神病患者, 每一个酗酒者, 都采取了适当的行动, 以达到他们认为是优越的地位.</li>
+<li>假如, 一个爱捣乱的学生的目标是吸引老师注意和使老师烦心以达到自己的优越感, 那么他会想尽各种办法来达到这个目标. 成为班上最懒的学生, 欺负同学, 到处捣蛋；你阻止了一件, 他会继续想出新的办法以达到目的. <strong>只要他的目标依旧未变，他就必须继续找出新毛病</strong>以获得注意力。</li>
+<li>solution: 假如有人说服我，<strong>让我相信：我的具体目标实在选得太糟，那么我便会改变我的行为</strong>。</li>
+<li>目标一改变，心灵的习惯和态度也会随之改变。他不必再用他旧有的习惯和态度，适合于他的新目标的态度会取代它们的地位</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="chapter-4-">Chapter 4: 早期的记忆</h3>
+<blockquote>
+<p>早期的记忆决定了一个<strong>对生活的理解</strong></p>
+</blockquote>
+<ul>
+<li>-56- <strong>个人企图达到优越地位的努力</strong>，是整个人格的关键，所以我们在个人心灵生活中的每一点都能看到它的影像</li>
+<li>-57- <strong>记忆绝不会和生活的样式背道而驰</strong>。假如一个人的优越感目标要求他感到：“别人总是在侮辱我。”他便会选择回忆能被他解释为侮辱的意外事件。只要他的生活样式发生了改变，他的记忆也会随之改变</li>
+<li>-57- 在所有的心灵现象中，最能显露其中秘密的，是个人的记忆.</li>
+<li>-57- 而早期的回忆是特别重要的。首先，它们显示出个人的生活样式的根源，及其最简单的表现方式. 此外，我们在其中还能看出儿童和父母，以及家庭中其他成员之间的关系。</li>
+<li>-60- 比如，一个长子发现有了弟弟或妹妹，剥夺了父母对他的爱．这个男孩或女孩会觉得：“我生活中最大的危险，就是有某个人限制我，妨害了我的自由发展。”</li>
+</ul>
+<h3 id="chapter-5-">Chapter 5: 梦</h3>
+<blockquote>
+<p>常识（即现实）与生活样式（即目标）发生冲突 --&gt; 在梦里需求解决方案 --&gt; 梦营造出一种场景 --&gt; 目标是留下来的感觉
+梦就是一种自我欺骗，自我陶醉的行为．</p>
+</blockquote>
+<ul>
+<li><p>梦的目的：</p>
+<ul>
+<li>-73- 事实上，做梦时，个人就等于是<em>希望在睡觉中解决问题</em>。这种说法并不算太过分</li>
+<li>-75- <strong>梦的目的必然是在于它们引起的感觉之中</strong>。梦只是引起这些感觉的一种方法，一种工具。梦的目标是它所留下来的感觉.</li>
+<li>-76- 只有在还没想出我们所面临问题的解决方法时，只有即使在睡眠中现实也不断压迫着我们，并向我们提出种种难题时，我们才会做梦。<em>梦的工作就是应付我们面临的难题，并提供解决之道</em>。</li>
+</ul>
+</li>
+<li><p>为何要有梦：</p>
+<ul>
+<li>-76- 梦的目的是在支持生活的样式，并引起适合于生活样式的感觉。但是，生活样式为什么需要支持呢？有什么东西会侵袭它？能够攻击它的，只有现实和常识。因此，<strong>梦的目的就是支持生活样式抵制常识的要求</strong>。这给了我们一个有趣的灵感。如果个人面临着一个他不希望用常识来解决的问题，他便能够用梦所引起的感觉来坚定他的态度</li>
+<li>-77- <em>梦是想在个人的生活样式和他当前的问题之间建立起联系，而又不愿意对生活样式提出新要求的一种企图</em>。</li>
+</ul>
+</li>
+<li><p>与<em>常识</em>的冲突：</p>
+<ul>
+<li>-76- 假如有个人遇见了困难，但<em>不希望用他的常识来对付它，而只想继续应用他不合时宜的生活样式</em>，那么他会找出各种理由来维护他的生活样式，使它显得似乎已足以应付问题。</li>
+<li>-76- <strong>常识是合作的一面</strong>，合作素养欠佳的人都不会喜欢常识。这种人会频频做梦。</li>
+<li>-76- 梦是常识的敌人。我们很可能发现有些不愿意被他们的感觉所欺骗的人，他们宁可依照科学的方法做事。这种人很少做梦或根本不会做梦。</li>
+</ul>
+</li>
+<li><p>梦如何与常识斗争：</p>
+<ul>
+<li>-78- 假如我们不用隐喻和符号，而坦率地说出自己的意愿，我们便无法避开常识</li>
+<li>-79- 在这个例子中，我们还发现了在梦中经常使用的另一种方法。这就是把一个问题拿来，加以节缩精炼，直至只剩下原来问题的一部分，然后用隐喻的方式把剩余部分表现出来，并把它当做原来的问题来处理。</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>-81- <strong>梦的目的是欺骗我们自己，并使我们自我陶醉</strong>。如果我们了解了梦，它们便不能欺骗我们，也不能再引起我们的心境和情绪。我们将宁可按照常识来解决问题，也不愿再接受梦的启示。假如梦都被了解了，它们的目的也就丧失掉了。</li>
+<li>-81- 每一个梦却都表现出：依照个人面临的特殊情境，他觉得自己生活样式的哪一方面需要再加强。因此，对于梦的解释都是属于个人的。</li>
+</ul>
+<h3 id="chapter-6-">Chapter 6: 家庭的影响</h3>
+<ul>
+<li>-92- 决定孩子行为的，并不是他的经验，而是他<strong>从经验中获得的结论</strong>。</li>
+<li>-93- 她的工作是双重的：她自己必须给予孩子一个可信赖人物的最初经验，然后她必须准备将这种信任和友谊扩展开，直到它包括整个人类社会为止</li>
+<li>-94- 孩子很快就会熟练地找出哪一种方法最能够有效地吸引母亲的注意力。</li>
+<li>-95- <strong>在个体心理学中，我们不再关心着要找出害怕的原因，而是要分辨出它的目的</strong>。所有被宠坏的孩子都会害怕某些东西，他们利用他们的害怕来吸引注意，结果就使这种情绪成为他们生活样式的一部分。</li>
+<li>-98- 假如母亲不能把孩子的兴趣扩展到父亲身上可能造成的危险，这种孩子在社会感觉的发展上可能遭受到严重的阻挠</li>
+<li>-99- 假如母亲在家庭里更富有权威，整天对家里的其他人唠叨，这种情势会倒转过来。女孩子们可能会模仿她，变得刻薄而挑剔。男孩子则始终站在防御的地位，怕受批评，尽量寻找机会表现他们的恭顺拘谨。</li>
+<li>-99- 作为父亲，他必须证明他自己对妻子、对儿子，以及对社会都是一个好伙伴。</li>
+<li>-100- 如果母亲告诉她的孩子：“等你爸爸回来教训你！”她等于是暗示他们：把父亲当做最后的权威以及生活中的实力人物。第二，它破坏了父子之间的关系，让孩子们怕父亲，而不觉得他是可亲近的朋友。</li>
+<li>-102- 做丈夫有一个重要条件：他必须对他的配偶深感兴趣。</li>
+<li>-102- 他必须成为他妻子的良伴；他必须努力奋斗，以使她的生活更舒适、更富裕；他必须乐观进取，以取悦她。只有夫妻双方都认为他们的共同幸福高于个人利益时，才可能有真正的合作。他们两人对另一方的兴趣都应该比对自己的兴趣更浓</li>
+<li>-102- 在孩子们面前，丈夫不应该将他对妻子的情感表现得太露骨。</li>
+<li>-102- 我觉得在我们这个时代有一种倾向，人们想告诉孩子许多他们还无法适当掌握的性知识. 最好是先了解孩子希望知道什么，并只回答他们正在思考的问题，而不要从我们自己的角度强迫他们接受我们认为每个人都应该知道的事情。</li>
+<li>-111- <strong>懒惰是野心再加上勇气丧失所得出的结果</strong>，野心高得使人看不出有实现的希望时，自然会令人心灰意冷。</li>
+<li>-113- 人类都在追求想要成为征服者，想要超越并压垮别人的目标。这种目标是早年训练的结果，也是觉得自己在家庭中未曾受到平等待遇的儿童努力奋斗、拼命竞争的结果。</li>
+</ul>
+<h3 id="chapter-7-">Chapter 7: 学校的影响</h3>
+<blockquote>
+<p>上学是孩子面对社会生活的一种新挑战. 雄心勃勃的期望与现实的打击，很容易会产生逃避心理．</p>
+</blockquote>
+<ul>
+<li>-115- 当孩子初次上学时，他面临着社会生活的一种新试验。这场试验会显现出他发展中的任何错误。</li>
+<li>-120- 在教育中引起最大困扰的，并不是儿童本身的各种限制，而是他认为他具有的各种限制.</li>
+<li>-122- 心理功能发展中的最大因素是兴趣，我们已经说过，<em>能够妨碍兴趣的，并不是遗传，而是灰心或对失败的畏惧</em>。</li>
+<li>-122- 在每种不平凡的能力后面，我们所看到的，并不是异乎寻常的遗传，而是长期的兴趣和训练.</li>
+<li>-122- 它最简单的形式就是“人之初，性本善”或“性本恶”的想法。这种说法显然是站不住脚的，只有逃避责任的欲望很强的人才会坚持它。“善”“恶”，像其他各种性格的表现一样，只有在社会环境中才有意义</li>
+<li>-126- 懒惰的孩子，除非他的懒惰是对父母或老师的直接攻击，否则他们<em>几乎都是野心勃勃而又怕遭到失败打击的儿童</em>.</li>
+<li>-127- 只要我肯做，哪件事我做不了？”当他失败时，他也会以此自我解嘲，并保持他的自尊。他会对自己说：“我只是懒，不是无能。</li>
+</ul>
+<h3 id="chapter-8-">Chapter 8: 青春期</h3>
+<blockquote>
+<p>青春期：证明自己不再是个孩子．</p>
+</blockquote>
+<ul>
+<li>-131- 对每个孩子而言，青春期中最重要的一件事情就是<strong>他必须证明他已经不再是个孩子了</strong>。</li>
+<li>-131- 青春期有许多种行为都是出自想表现独立性、和成人平等、男子气概或女人作风等等的欲望。这些表现的方向决定于儿童对“成长”的意义抱有何种看法</li>
+<li>-133- 青春期的所有危险，都是由于对生活的三个问题缺乏适当的训练和准备所造成的。</li>
+<li>-133- <em>如果孩子们对未来心怀畏惧，他们自然会以最不费力气的方法来应付它</em>。然而，这种简单的方法却是没有用的方法。</li>
+<li>-141- 在青春期，除了社会情况会要求孩子们在生活样式方面作一些新的适应之外，其他的现象对他们并不会有所影响。</li>
+</ul>
+<h3 id="chapter-9-">Chapter 9: 犯罪及其预防</h3>
+<blockquote>
+<p>罪犯的目标总是在追求属于他<strong>私人的优越感</strong></p>
+</blockquote>
+<ul>
+<li>-142- 我们在人类身上总可以发现这条巨大的活动线———挣扎着要由卑下的地位升至优越的地位，由失败到胜利，由下到上。它从最早的儿童时期便已经开始，一直持续至生命的终止。</li>
+<li>-143- 我们发现<strong>罪犯的目标总是在追求属于他私人的优越感。他所追求的，对别人一点贡献都没有，他也不和别人合作</strong>。</li>
+<li>-143- 假如我们要了解一个罪犯，我们要找出的主要点是他在<strong>合作中失败的程度和本质</strong>.</li>
+<li>-147- 罪犯全部都是懦夫。他们逃避了他们觉得自己的能力不足以应付的问题。除了他们所犯的罪行之外，我们可以在他们面对生活的方式中看出他们的懦弱.</li>
+<li>-153- 没有哪个人在犯罪之前是没有计划的，在计划之时，他们<em>对自己的行为必然会给出一个合理的解释</em>。在这一类的自白书中，我从没有发现过把自己的罪行描述得简单明了的例子，也从没有发现过不想替自己的行为辩解的犯人。</li>
+<li>-155- 我们必须发现他的失败是从什么地方最先开始的，以及造成这种失败的环境是怎样的。他的人格的主要表现在四五岁的时候便已经决定了.</li>
+<li>-159- 当父母在子女面前抱怨生活艰难、世道险恶时，他们也会妨碍孩子社会兴趣的发展。</li>
+<li>-159- 无疑，孩子们长大后，对其同胞的为人会产生出歪曲的看法，如果他们因此转而反对他们的父母，我们也不必感到惊讶。<em>一旦社会兴趣受到阻碍，剩下来的就只有自私的态度了</em>。</li>
+<li>-160- 容易产生特别困难的三类儿童，第一是身体有缺陷的儿童，第二是被宠坏的儿童，第三是受到忽视的儿童</li>
+<li>-167- 因为当他们以为自己是在和环境作战时，他们便会坚持自己的态度而不肯妥协。罪犯也是如此。</li>
+<li>-169- 我们可以利用教师作为推进社会进步的动力，我们可以训练教师来纠正儿童们在家庭中养成的错误，并发展他们的社会兴趣，使之扩展到别人身上，这是学校自然的发展方向。</li>
+</ul>
+<h3 id="chapter-10-">Chapter 10: 职业</h3>
+<ul>
+<li>-170- 由于人类学会了合作，所以我们才采取了分工的方法，<strong>分工合作是人类幸福的主要保障</strong>。假如每一个人都不愿意合作，也不愿仰赖过去人类的成果，而只想凭一己之力在地球上谋生，那么人类的生命必然无法再延续下去。通过分工，我们可以利用许多种不同训练的结果，并将许多能力不同的人组织起来，从而使他们对人类共同的幸福都有所贡献</li>
+<li>-170- 束缚人类的三条系带构成了人类的三个问题，这三个问题是不能分开来解决的，要解决任何一个问题都仰赖于其余两个问题的顺利解决。</li>
+<li>-171- 我们可以说，它们其实是同一种情境、同一种问题的各个不同层面，这个问题就是：人类必须在自己所处的环境中保存生命、拓展生命</li>
+<li>-177- 在我们的社会里，经常有许多人利用事业忙碌作为逃避爱情和婚姻问题的方法。一个狂热地献身于事业的男人可能会想：“我没有时间花在我的婚姻上，因此我不应对它的不美满负责。”神经病人对爱情和社会这两个问题更是要想方设法逃避。他们不是回避异性，就是用错误的方法接近他们。他们没有朋友，他们对别人也不感兴趣。他们只是日以继夜地忙着自己的事业，白天想，晚上做梦时也在想。他们使自己长期处于紧张状态之中，结果诸如胃溃疡之类的神经病出现了。现在，他们更可以拿胃部疾患作为逃避爱情和社会问题的借口了。还有些人老是喜欢改变职业，他们一直以为他们能够找到更适合于自己的职业，</li>
+</ul>
+<h3 id="chapter-11-">Chapter 11: 人及其同伴</h3>
+<h3 id="chapter-12-">Chapter 12: 爱情与婚姻</h3>
+<ul>
+<li>-190- 我们甚至可以说，要完全解决这种两个人的合作问题，每一个配偶都应该关心对方更甚于关心自己。这是爱情和婚姻成功的唯一基础</li>
+<li>-191- 我们的教育都太注重个人的成功，都<strong>太强调要考虑我们能够从生活中获得什么，而不是我们能付出什么</strong>.</li>
+<li>-191- 当儿童很早便显现出他们对异性的兴趣，并选择他们所喜欢的对象时，我们绝不可以认为这是一种错误、胡闹或性早熟。我们不应该嘲弄它，或拿它当笑话。</li>
+<li>-194- 最坏的情况是个人只顾及自己利益的时候。如果他受过这种训练，他会终日盘算着：我能从生活中得到什么样的快乐或兴奋？他会一直要求自由和解脱，从不考虑要怎样才能使其伴侣的生活更轻松，更富裕.</li>
+<li>-194- 假如男人或女人这样为自己预留退路，他们便不会集中全力来从事这项工作。任何一种严肃而重要的生活或工作，都是不能先替自己安排脱身之计的。</li>
+</ul>
+]]></content>
+    <summary type="html"><![CDATA[<p><a href="http://book.douban.com/subject/1844607/" target="_blank">http://book.douban.com/subject/1844607/</a></p>
+<h3 id="chapter-1-">Chapter 1: 生活的意义</h3>
+<blockquote>
+<p>生活的意义在于和他人<strong>合作</strong>, 解决人类面临的职业, 社会和性的问题. 缺乏合作的人会把自己封闭起来, 产生精神问题.</p>
+</blockquote>
+<ul>
+<li>-9- 我们一直是以自己赋予现实的意义来感受现实，我们所感受的不是现实本身，而是现实被我们所赋予的意义，或者说是我们的<strong>感受是我们自己对现实的解释</strong>。</li>
+<li>-10- 每一种个体自认为正确的生活的意义可能多少都含有错误的成分在里头，没有人拥有绝对正确的生活意义；但同时我们也会发现，无论是哪一种生活的意义，只要有人持这种态度，它也绝不会是完全错误的。</li>
+<li>-10- 一个人的现实生活不得不受这<strong>三条事实的制约</strong>，他所面临的问题也都是这些事实所造成的。<ol>
+<li>我们人类居住在地球这个贫瘠星球的表面上，我们没有办法脱离地球的表面去讨生活。我们必须不停地奋斗，以找寻更为完美的解答，这个解答必须针对“我们被束缚于地球这个贫瘠星球的表面上”这件事实，以及我们居住的环境所带给我们的种种利益和灾害。</li>
+<li>我们自己并不是人类种族的唯一成员，我们四周还有其他人，只要我们活着，就必然要和他们发生联系。</li>
+<li>人类同时还被另一种事实所束缚：人类有两种性别，个体和人类集体生命的存续都必须依赖于这一事实。</li>
+</ol>
+</li>
+<li>-12- 三种事实带来了三种问题, 即人类不得不面对的<strong>职业、社会和性</strong>这三个问题:<ol>
+<li>如何谋求一种职业，以使我们在地球的天然限制之下得以生存；</li>
+<li>如何在我们的同类之中获取地位，以使我们能互助合作并分享合作的利益；</li>
+<li>如何调整我们自身，以适应“人类存在有两种性别”和“人类的延续和扩展，有赖于我们的爱情生活”等事实</li>
+</ol>
+</li>
+<li>-12- <strong>个体心理学（Individual Psychology）</strong>: 阿德勒所创立的心理学派, 也就是本书说推崇的精神, 注重人类间的积极关系. <a href="http://baike.baidu.com/view/2779639.htm" target="_blank">Ref</a></li>
+<li>-13- 所有<strong>真正的“生活意义”</strong>的标准是：它们都是<strong>共同的意义</strong>，也就是说，它们是别人能够分享的意义，也是能被别人认定为有效的意义。<ul>
+<li>能够成功地应付人类生活中所存在的问题的人，他的行为方式明显地告诉我们：生活的意义在于对别人发生兴趣以及互助合作</li>
+<li>假如一个人在他赋予生活的意义里，希望对别人能有所贡献，而且他的情感也都指向了这个目标，他自然会把自己的人格塑造到理想型态———一种对他人、对社会都有贡献的状态</li>
+<li>生活的意义在于<strong>对人类全体发生兴趣并与之合作为我们的世界作出贡献，他们也正在努力地培养着爱情和对社会的兴趣</strong>。</li>
+</ul>
+</li>
+</ul>
+<p>]]></summary>
+    
+      <category term="读书笔记" scheme="http://oneyoung.im/tags/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Reading" scheme="http://oneyoung.im/categories/Reading/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[A framework for event driven FSM]]></title>
+    <link href="http://oneyoung.im/2014/03/02/a-framework-implement-for-fsm/"/>
+    <id>http://oneyoung.im/2014/03/02/a-framework-implement-for-fsm/</id>
+    <published>2014-03-02T09:12:33.000Z</published>
+    <updated>2014-12-11T06:42:34.000Z</updated>
+    <content type="html"><![CDATA[<p>建立一个<strong>通用</strong>事件驱动的状态机:</p>
+<ol>
+<li>状态机的架构与具体的事件和状态的定义分开.</li>
+<li>状态与事件是低耦合的, 即状态不用关心是什么事件导致状态机进入这个状态.</li>
+<li>每个状态的进入或者退出, 会触发对应的处理函数.</li>
+</ol>
+<h3 id="implement">Implement</h3>
+<p>以下代码为了结构清晰, 会省略一些细节和保护处理, 也有可能不符合C的强类型语法要求, 就权当成伪代码看待吧, 直接copy &amp; paste, 编译器肯定会报错滴 -,-</p>
+<a id="more"></a>
+
+<h5 id="-">基本数据类型定义</h5>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+</pre></td><td class="code"><pre><span class="comment">/* 事件 */</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> {
+	<span class="keyword">unsigned</span> id;  <span class="comment">// 区别不同的事件</span>
+	<span class="keyword">void</span> *user_data;  <span class="comment">// 可以携带私有的数据, 传递给处理函数</span>
+} event_type;
+
+<span class="comment">/* 状态 */</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> {
+	<span class="keyword">unsigned</span> id;  <span class="comment">// 用于区别不同的事件</span>
+	sm_cb enter;  <span class="comment">// 进入此状态调用的callback, 可为NULL</span>
+	sm_cb leave;  <span class="comment">// 推出此状态调用的callback, 可为NULL</span>
+} state_type;
+
+<span class="comment">/* 状态机 */</span>
+<span class="comment">// 为了简化模型, 一些必要的保护信息略去(比如表的大小限制等)</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> {
+	<span class="keyword">unsigned</span> current_state;  <span class="comment">// 当前状态机所处的状态</span>
+	<span class="keyword">const</span> state_type *state_table;  <span class="comment">// 以state_type的id为索引建立的状态表</span>
+	<span class="keyword">const</span> <span class="keyword">unsigned</span> **transition_table;  <span class="comment">// 以state_id和event_id组成的状态转换矩阵</span>
+} fsm_type;
+</pre></td></tr></table></figure>
+
+<h5 id="api">API</h5>
+<p>需要２个函数:</p>
+<ul>
+<li><code>fsm_new</code>: 由状态表和转换表(具体可以参考后面的Example部分), 以及初始状态(状态机总是处于某种状态当中), 创建一个状态机</li>
+<li><code>fsm_event_handler</code>: 状态机输入一个新的事件. 可以是某个线程监听外部事件的变化, 然后调用这个函数更新状态; 也可以是<code>state_type</code>的callback调用, 比如, 某个状态机进入A state后, 经过1min延时后, 会自动进入B state.</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+</pre></td><td class="code"><pre><span class="comment">/* 此处省去参数类型定义 */</span>
+
+<span class="comment">/* fsm_new: 创建fsm
+ * parameters:
+ * 		state_stable
+ *		transition_table
+ *		init_state -- 状态机初始状态
+ * return: fsm
+ */</span>
+fsm_type *fsm_new(state_table, transition_table, init_state)
+{
+	fsm_type *fsm = <span class="built_in">calloc</span>(<span class="keyword">sizeof</span>(fsm_type));
+
+	fsm-&gt;state_table = state_table;
+	fsm-&gt;transition_table = transition_table;
+
+	<span class="comment">/* enter init_event */</span>
+	fsm-&gt;current_state = init_state;
+	fsm-&gt;state_table[fsm-&gt;current_state].enter(); <span class="comment">// invoke enter callback</span>
+
+	<span class="keyword">return</span> fsm;
+}
+
+<span class="comment">/* fsm_event_handler: 接收处理事件
+ * parameters:
+ * 		fsm
+ *		event -- 发生的事件
+ */</span>
+<span class="keyword">void</span> fsm_event_handler(fsm, event)
+{
+	fsm-&gt;state_table[fsm-&gt;current_state].leave();  <span class="comment">// invoke leave callback</span>
+	
+	<span class="comment">/* lookup for transitation table for next state if current event given */</span>
+	next_state = fsm-&gt;transition_table[fsm-&gt;current_state][event-&gt;id];
+	<span class="comment">/* prepare to enter next state */</span>
+	fsm-&gt;current_state = next_state;
+	fsm-&gt;state_table[fsm-&gt;current_state].enter();
+}
+</pre></td></tr></table></figure>
+
+<h3 id="example">Example</h3>
+<p>一个栗子</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+</pre></td><td class="code"><pre><span class="comment">/* Event id 以及 State id 定义 */</span>
+<span class="keyword">enum</span> {
+	EVENT_INVALID = -<span class="number">1</span>,
+	EVENT_A,
+	EVENT_B,
+	...
+	EVENT_MAX,
+};
+
+<span class="keyword">enum</span> {
+	STATE_INVALID = -<span class="number">1</span>,
+	STATE_1,
+	STATE_2,
+	...
+	STATE_MAX,
+};
+
+<span class="comment">/* state table */</span>
+state_type xxx_state_table[STATE_MAX] = {
+	[STATE_1] = {
+		.id = STATE_1;
+		.enter = state_1_enter_cb,  <span class="comment">/* called when enter this state */</span>
+		.leave = state_1_leave_cb,  <span class="comment">/* called when leave this state */</span>
+	},
+	[STATE_2] = {
+		.id = STATE_2;
+		.enter = state_2_enter_cb,
+	},
+	...
+};
+
+<span class="comment">/* state transition matrix */</span>
+<span class="keyword">unsigned</span> xxx_transition_table[STATE_MAX][EVENT_MAX] = {
+	[STATE_1] = {
+		[EVENT_2] = STATE_4,
+		[EVENT_5] = STATE_2,
+		...
+	}
+	[STATE_2] ...
+	...
+};
+
+xxx_fsm = fsm_new(xxx_state_table, xxx_transition_table, STATE_1;)
+</pre></td></tr></table></figure>
+
+<p>可以看到, 这里的<strong>关键之处</strong>在于那个<code>xxx_transition_table</code> (其实就是<em>状态转移表</em>中的<a href="http://zh.wikipedia.org/wiki/%E7%8A%B6%E6%80%81%E8%BD%AC%E7%A7%BB%E8%A1%A8" target="_blank">二维状态表</a>), 假设状态机处于<code>STATE_1</code>, 而这时候有人调用<code>fsm_event_handler</code>输入一个<code>EVENT_5</code>事件:</p>
+<ul>
+<li>根据这个transition table, 下一个的状态会是<code>STATE_2</code>;</li>
+<li>fsm会从<code>STATE_1</code>离开, 因此会运行leave callback: <code>state_1_leave_cb</code></li>
+<li>fsm会进入<code>STATE_2</code>, 因此会调用enter callback: <code>state_2_enter_cb</code></li>
+<li>fsm将当前状态保存为<code>STATE_2</code></li>
+</ul>
+]]></content>
+    <summary type="html"><![CDATA[<p>建立一个<strong>通用</strong>事件驱动的状态机:</p>
+<ol>
+<li>状态机的架构与具体的事件和状态的定义分开.</li>
+<li>状态与事件是低耦合的, 即状态不用关心是什么事件导致状态机进入这个状态.</li>
+<li>每个状态的进入或者退出, 会触发对应的处理函数.</li>
+</ol>
+<h3 id="implement">Implement</h3>
+<p>以下代码为了结构清晰, 会省略一些细节和保护处理, 也有可能不符合C的强类型语法要求, 就权当成伪代码看待吧, 直接copy &amp; paste, 编译器肯定会报错滴 -,-</p>
+]]></summary>
+    
+      <category term="algrithms" scheme="http://oneyoung.im/tags/algrithms/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[读书笔记]别独自用餐]]></title>
+    <link href="http://oneyoung.im/2014/02/23/%5B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0%5D%E5%88%AB%E7%8B%AC%E8%87%AA%E7%94%A8%E9%A4%90/"/>
+    <id>http://oneyoung.im/2014/02/23/[读书笔记]别独自用餐/</id>
+    <published>2014-02-23T07:34:12.000Z</published>
+    <updated>2014-02-23T07:51:35.000Z</updated>
+    <content type="html"><![CDATA[<h3 id="-">道</h3>
+<p>硬通货: <strong>慷慨</strong> ==&gt; 你能为别人带来什么价值?</p>
+<ul>
+<li>不要先问&quot;它们能为我做什么,而是我能为他们做什么?&quot;</li>
+<li>未雨绸缪, 不要等到有事情了才想起别人.</li>
+</ul>
+<p><strong>真诚</strong>(而不是利用他人), 尊重<strong>每个人</strong>(不势力, 不是仅仅去巴结有钱有势的人)</p>
+<p>对于内向的人来说, 很人打交道需要<strong>勇气</strong>, 被拒绝没有什么大不了的, 他们错过了一次帮助别人的好机会.</p>
+<a id="more"></a>
+
+<h3 id="-">术</h3>
+<p>准备工作: 要从他人角度着想, 对于你要认识的人, 他在工作或者生活方面有什么爱好, 遇到了什么挑战, 想要达到什么目标. 总之, 你要站在对方的角度, 而不是你想要什么.</p>
+<p>电话热场:</p>
+<ol>
+<li>先找一个媒介: <strong>共同的朋友</strong> ==&gt; 获取最初的信任. (无论是电话还是面对面认识的, 共同的朋友能够迅速建立起人与人之间最初的信任)</li>
+<li>亮出你的<strong>价值</strong>所在:　你能为对方做什么</li>
+<li>言简意骇, 并能迅速适宜的作出<strong>约定</strong>(&quot;即舒服有紧迫&quot;的感觉) ==&gt; 电话只是用来确定下次见面的机会, 真正的交往还是要面对面</li>
+<li>拿出<strong>折中</strong>的方案: 即使对方拒绝你, 你可以退而求其次. ==&gt; 折中是一种强大的力量, 如同&lt;影响力&gt;里所讲的, 当别人拒绝你的时候, 往往会有一点愧疚, 这时候你拿出折中的方案, 对方会看到有弥补对你愧疚的机会.</li>
+</ol>
+<p>&quot;看门人&quot;<strong>不能</strong>惹怒: 对方的秘书之类的人, 是接触到本人的一道屏障, 没有他们的帮助, 情况会变得很难.</p>
+<p>分享<strong>激情</strong>: 友谊并不取决于两人相处时间的长短, 而在于这段时间的利用质量. <strong>彼此的兴趣</strong>是一个很好的突破口.</p>
+<p>步步紧随: 新认识的人<strong>24小时</strong>内取得联系, 如有可能的话, 确定下次见面的时间.</p>
+<p><strong>会议</strong>是扩展交际圈和谈生意的最佳场合, 不要像图钉一样坐在座位上等着别人来招呼.</p>
+<p>结交<strong>交际枢纽式人物</strong>(典型的交际中心): 这种人物认识的人很多, 范围也很广泛, 通过他们的枢纽中转, 你可以扩大交际圈(一般来说, 和你交往比较密切的朋友, 和你的经历和圈子也比较相识, 容易被限制在一个很小的范围. 通过此类交往, 拓展到更广阔的世界). 找工作, 或者打听消息以及探寻观点时, 那种&quot;不强&quot;的关系往往要比你想象有用的多(范围更广).
+典型的交际中心:</p>
+<ul>
+<li>餐馆老板</li>
+<li>猎头专家: 不要找工作才想起他, 可以帮忙给他推荐几个人.</li>
+<li>专业说客</li>
+<li>资金募集人</li>
+<li>公关人员</li>
+<li>政治人物</li>
+<li>记者</li>
+</ul>
+<p><strong>圈子融合</strong>: &quot;圈子&quot;不是一张网, 把人们围在一个范围内. 而是像互联网式发散的连接, 通过某朋友你可以认识他的朋友. ==&gt; 圈子融合, 朋友的圈子与你的圈子.</p>
+<p>&quot;闲谈的艺术&quot;:</p>
+<ul>
+<li>脱颖而出的方法: <strong>做好你自己</strong> ==&gt; 诚实, 坦率, <strong>示弱</strong>(与其高高在上相比, 一定程度的示弱更能拉近与他人的关系, 因为只有面对比较亲密的朋友我们才会撕开装B的伪装)</li>
+<li>&quot;安全的话题&quot;往往只会产生安全的效果(也就是没什么效果, 你不会给别人留下深刻的印象). 聊一些深入的话题, 才象是活生生的人, 而不是披着光鲜外衣的皮囊.</li>
+<li>术:<ul>
+<li>学会无声的暗示:<ol>
+<li>给对方一个发自真心的笑容 ==&gt; 暗示&quot;我更平易近人&quot;</li>
+<li>目光交流 (70%, 100%) ==&gt; 过少的目光交流会让人觉得不够专心, 而死死的盯着对方产生一种紧迫感, 反而使人不舒服.</li>
+<li>放松自己, 不会显得防备, 自闭</li>
+</ol>
+</li>
+<li>保持真诚</li>
+<li>深入交流: 分享有<strong>激情</strong>的爱好, 不要冗长无味, 重要的是传播出你的激情, 而不是给对方布道说教.</li>
+<li><a href="http://wiki.mbalib.com/wiki/%E4%B9%94%E5%93%88%E9%87%8C%E8%B5%84%E8%AE%AF%E7%AA%97" target="_blank">Johari Window(心灵之窗)</a>: 真正而有效的沟通, 只能在公开区內进行. 但在现实中，很多沟通者对彼此都不很了解，很无奈地进入了封闭区, 沟通的效果就可想而知了. ==&gt; 通过提高个人信息曝光率、主动征求反馈意见等手段，不断扩大自己的公开区，增强信息的真实度、透明度 --&gt; 进入开放区.</li>
+<li>学会倾听</li>
+</ul>
+</li>
+</ul>
+<p>&quot;<strong>健康, 财富, 子女</strong>&quot; -- 世界上情感深刻的联系都是由这三种事物来构建的. (<strong>忠诚</strong>是在比较低层次的需求中产生的, 根据马斯洛的需求层次理论, 健康财富子女是人的基本需求. 更高层次的需求是建立在基本需求之上的). ==&gt; 若从这三个方面给对方提供帮助, 能建立更深层次的友谊.</p>
+<p>&quot;社交套利&quot;: 坚持<strong>分享</strong>你得到的<strong>信息和特权</strong></p>
+<ul>
+<li>比如你的一个朋友需要找一个合作伙伴, 你可以通过牵线搭桥, 将这个机会介绍另一个朋友. 通过牵线搭桥 ==&gt; 朋友双方都获利 ==&gt; &quot;<strong>社交套利</strong>&quot;</li>
+<li>若你没有这么多关系时 ==&gt; 知识就派上用场了 ==&gt; 你可以 1.分享你学到的知识 2.用你的知识去帮助别人 3.再不济也可以帮别人查找资料</li>
+<li>Idea: Be ready to help others. 不仅要关心自己的成功, 也要关心别人的成功.</li>
+</ul>
+<p>面对媒体或者发表自己的文章时候, 重要的是&quot;为别人提供<strong>有价值</strong>的东西, 而不是仅仅想传播你自己的名字&quot;.</p>
+<p>&quot;良师&quot;: 要接受别人的教导之前, 要先检查自己是否<strong>骄傲自大</strong>, 是否<strong>妒忌他人的成功</strong>, 然后当机会到来时再有意识地与他人建立良好的关系.</p>
+<p><strong>社交是生活的一部分</strong>, 而不是为达到某种目的而付出的代价. 关键是你愿不愿意过这种生活.</p>
+<hr>
+<h3 id="-">夹带私货</h3>
+<p>以前总是怀着一种朴素的想法: 所谓的人际交往就是赤裸裸的相互利用. 这本书给了我另外一种视角, 与人交往, 最重要的一点就是慷慨, 相互帮助.</p>
+<p>如今流行的&quot;人脉&quot;这个词暗示人与人之间赤裸裸的相互利用. 市面上所谓的成功学, 各类厚黑学大行其道, 大肆鼓吹人脉的重要性, 但是, 仅仅是说如何利用他人, 利用各种关系达到自己的目的, 升职加薪, 当上总经理, 出任CEO, 迎娶白富美, 走上人生巅峰. 但是, 一个有良知的人都会对这种一味索取, 操纵他人的做法感到反感.</p>
+<p>康德说过, 人只能是目的, 而不是手段. 虽然书中介绍了很多技巧, 但其基本理念就是真诚待人, 乐于助人, 这些品质是人类所敬重推崇的. 这本书告诉你, 人际交往其实是你先帮助别人, 当你有困难的时候, 被你帮助过的人自然会帮助你. 我相信每个人都有一个善良的心, 当与人交往时候, 首先想到的不再是利用他人, 而是去除功利心, 真诚的与人沟通, 不予索取为目的, 就不会对这种行为产生厌恶抵触情绪. 毕竟人类是群居动物, 都有与人交流分享的需要. 当然你也可以说, 从另一个角度看, 本质上也是一种隐形的交易, 然而, 如同经济学所说的, 通过交易, 每个人都得到了自己想要的东西, 双方产生的总效用是正值, 这个社会变得更美好了.</p>
+<p>对人真诚和慷慨, 是一种付出, 人生在世, 总想要留下一些痕迹, 要不死后拂袖而去, 没有一点痕迹, 就像没来过这个世上一样. 也许有人会说, 现在社会人心险恶, 如此慷慨与真诚, 很容易被人利用. 是的, 这种可能性是存在的, 但是我相信大多数人本质上是善良的, 即使遇到这种人, 吃一次亏就认清了他的真面目, 也算值了. 凡事总是有风险的, 畏畏缩缩, 不容许有半点损失, 只会在这世上寸步难行.</p>
+<p>这本书作者提供了很多技巧, 几乎是全套的策略和各种情形下的实践. 如果完全按照作者的建议, 基本上一个人的大部分的时间都会被社交所占据. 按照作者在本书末尾所描述的, 社交已经成为他生活很重要的一部分, 并愿意为此花费时间, 投入精力和付出代价. 对于自己来说, 照搬全抄显然是不现实的, 技巧有可以借鉴之处, 但是, 最重要的是&quot;道&quot;, 人际交往的基本理念. &quot;技&quot;是为&quot;道&quot;服务的, 本质上是为了实现&quot;道&quot;的要求; 有了&quot;道&quot;的指导, &quot;技&quot;就不会误入歧途.</p>
+]]></content>
+    <summary type="html"><![CDATA[<h3 id="-">道</h3>
+<p>硬通货: <strong>慷慨</strong> ==&gt; 你能为别人带来什么价值?</p>
+<ul>
+<li>不要先问&quot;它们能为我做什么,而是我能为他们做什么?&quot;</li>
+<li>未雨绸缪, 不要等到有事情了才想起别人.</li>
+</ul>
+<p><strong>真诚</strong>(而不是利用他人), 尊重<strong>每个人</strong>(不势力, 不是仅仅去巴结有钱有势的人)</p>
+<p>对于内向的人来说, 很人打交道需要<strong>勇气</strong>, 被拒绝没有什么大不了的, 他们错过了一次帮助别人的好机会.</p>
+]]></summary>
+    
+      <category term="读书笔记" scheme="http://oneyoung.im/tags/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Reading" scheme="http://oneyoung.im/categories/Reading/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[利用dropbox自动备份网站数据]]></title>
+    <link href="http://oneyoung.im/2013/12/18/%E5%88%A9%E7%94%A8dropbox%E8%87%AA%E5%8A%A8%E5%A4%87%E4%BB%BD%E7%BD%91%E7%AB%99%E6%95%B0%E6%8D%AE/"/>
+    <id>http://oneyoung.im/2013/12/18/利用dropbox自动备份网站数据/</id>
+    <published>2013-12-18T01:35:33.000Z</published>
+    <updated>2014-02-27T08:23:39.000Z</updated>
+    <content type="html"><![CDATA[<p>我等小blog网站自然是用不上高大上的备份方案, 但是不备份后果很严重, 万一那天VPS公司跑路了, 或者机器挂了, 东西就全没鸟.</p>
+<p>穷人只用的起免费的Dropbox =.=</p>
+<h4 id="-">安装</h4>
+<p>根据自己安装版本选择32或者64位的, 解压后会有一个.dropbox-dist的隐藏目录.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="comment"># Stable 32-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86"</span>
+ 
+<span class="comment"># Or stable 64-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86_64"</span>
+
+tar -xvf dropbox.tar.gz
+</pre></td></tr></table></figure>
+
+<p>第一次在cmdline运行的时候, 会提示通过一个链接绑定帐号, 照着做就行了.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>~/.dropbox-dist/dropbox
+</pre></td></tr></table></figure>
+
+<p>然后就会在home目录下建立一个Dropbox的目录.</p>
+<a id="more"></a>
+
+<h4 id="dropbox-daemon">dropbox daemon</h4>
+<p>为保证dropbox能够开机自动运行, 需要往init.d添加相应的脚本: <code>/etc/init.d/dropbox</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+</pre></td><td class="code"><pre>USER=oneyoung
+HOMEDIR=/home/<span class="variable">$USER</span>
+
+<span class="function"><span class="title">start</span></span>() {
+    <span class="built_in">echo</span> <span class="string">"Starting dropbox..."</span>
+    start-stop-daemon -b -o -c <span class="variable">$USER</span> -S -x <span class="variable">$HOMEDIR</span>/.dropbox-dist/dropbox
+}
+
+<span class="function"><span class="title">stop</span></span>() {
+    <span class="built_in">echo</span> <span class="string">"Stopping dropbox..."</span>
+    start-stop-daemon -o -c <span class="variable">$USER</span> -K -x <span class="variable">$HOMEDIR</span>/.dropbox-dist/dropbox
+}
+
+<span class="function"><span class="title">status</span></span>() {
+        dbpid=$(pgrep -u <span class="variable">$USER</span> dropbox)
+        <span class="keyword">if</span> [ -z <span class="variable">$dbpid</span> ] ; <span class="keyword">then</span>
+            <span class="built_in">echo</span> <span class="string">"dropbox not running."</span>
+        <span class="keyword">else</span>
+            <span class="built_in">echo</span> <span class="string">"dropbox running."</span>
+        <span class="keyword">fi</span>
+}
+
+<span class="keyword">case</span> <span class="string">"<span class="variable">$1</span>"</span> <span class="keyword">in</span>
+  start)
+    start
+    ;;
+
+  stop)
+    stop
+    ;;
+
+  restart|reload|force-reload)
+    stop
+    start
+    ;;
+
+  status)
+    status
+    ;;
+
+  *)
+    <span class="built_in">echo</span> <span class="string">"Usage: /etc/init.d/dropbox {start|stop|reload|force-reload|restart|status}"</span>
+    <span class="keyword">exit</span> <span class="number">1</span>
+
+<span class="keyword">esac</span>
+
+<span class="keyword">exit</span> <span class="number">0</span>
+</pre></td></tr></table></figure>
+
+<p>启用service, 并开机运行.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> chmod +x /etc/init.d/dropbox
+<span class="built_in">sudo</span> update-rc.d <span class="operator">-f</span> dropbox defaults
+<span class="built_in">sudo</span> update-rc.d dropbox enable
+</pre></td></tr></table></figure>
+
+<h4 id="backup-task">backup task</h4>
+<p>上述操作只能保证dropbox运行, 但是何时备份文件需建立一个cron task. 我等小破站一天备份一次就足够了.</p>
+<p>备份脚本: <code>/etc/cron.daily/backup-db</code></p>
+<blockquote>
+<p>注意: 文件名不能是backup.py, 因为<code>run-parts</code>默认会忽略带有<code>.</code>的文件名</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+</pre></td><td class="code"><pre><span class="comment">#!/usr/bin/env python</span>
+<span class="keyword">import</span> os
+
+target = [<span class="string">'/www/django-blog/db'</span>,
+    <span class="string">'/www/django-blog/media'</span>]
+bak_dst = <span class="string">'/home/oneyoung/Dropbox/backup'</span>
+
+<span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(bak_dst):
+    os.system(<span class="string">'mkdir -p %s'</span> % bak_dst)
+
+<span class="keyword">for</span> t <span class="keyword">in</span> target:
+    os.system(<span class="string">"rsync -vaz --delete %s %s"</span> % (t, bak_dst))
+</pre></td></tr></table></figure>
+
+<p>重启cron使更改生效.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> chmod +x /etc/cron.daily/backup-db
+<span class="built_in">sudo</span> cron restart
+</pre></td></tr></table></figure>
+
+<h5 id="ref-">Ref:</h5>
+<ul>
+<li><a href="http://jonlabelle.com/snippets/view/shell/using-linux-and-dropbox-as-a-remote-backup-solution" target="_blank"><a href="http://jonlabelle.com/snippets/view/shell/using-linux-and-dropbox-as-a-remote-backup-solution">http://jonlabelle.com/snippets/view/shell/using-linux-and-dropbox-as-a-remote-backup-solution</a></a></li>
+<li><a href="http://blog.david-jensen.com/development/backup-wordpress-to-dropbox-amazon-ec2-centos/" target="_blank"><a href="http://blog.david-jensen.com/development/backup-wordpress-to-dropbox-amazon-ec2-centos/">http://blog.david-jensen.com/development/backup-wordpress-to-dropbox-amazon-ec2-centos/</a></a></li>
+</ul>
+]]></content>
+    <summary type="html"><![CDATA[<p>我等小blog网站自然是用不上高大上的备份方案, 但是不备份后果很严重, 万一那天VPS公司跑路了, 或者机器挂了, 东西就全没鸟.</p>
+<p>穷人只用的起免费的Dropbox =.=</p>
+<h4 id="-">安装</h4>
+<p>根据自己安装版本选择32或者64位的, 解压后会有一个.dropbox-dist的隐藏目录.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="comment"># Stable 32-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86"</span>
+ 
+<span class="comment"># Or stable 64-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86_64"</span>
+
+tar -xvf dropbox.tar.gz
+</pre></td></tr></table></figure>
+
+<p>第一次在cmdline运行的时候, 会提示通过一个链接绑定帐号, 照着做就行了.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>~/.dropbox-dist/dropbox
+</pre></td></tr></table></figure>
+
+<p>然后就会在home目录下建立一个Dropbox的目录.</p>
+]]></summary>
+    
+      <category term="web" scheme="http://oneyoung.im/tags/web/"/>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="script" scheme="http://oneyoung.im/tags/script/"/>
+    
+      <category term="bash" scheme="http://oneyoung.im/tags/bash/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[bash: vim 自动补全文件名卡住]]></title>
+    <link href="http://oneyoung.im/2013/12/18/bash:-vim-%E8%87%AA%E5%8A%A8%E8%A1%A5%E5%85%A8%E6%96%87%E4%BB%B6%E5%90%8D%E5%8D%A1%E4%BD%8F/"/>
+    <id>http://oneyoung.im/2013/12/18/bash:-vim-自动补全文件名卡住/</id>
+    <published>2013-12-17T22:58:11.000Z</published>
+    <updated>2013-12-17T23:26:33.000Z</updated>
+    <content type="html"><![CDATA[<p>本来home目录下的.bashrc用一个git维护着. 今天手贱, 在另一个目录下, 以为存在git, 直接git reset, 然后就悲剧了, home下面有些配置直接被干掉了 T.T</p>
+<p>然后就出现各种问题了, 发现bash中输入vim + TAB 之后就卡住了, 只能ctrl + C取消掉, 记得之前搞过, google了一通, 终于把它捞出来了.</p>
+<p>好像是bash-completion的问题 (REF: <a href="https://bbs.archlinux.org/viewtopic.php?id=115604" target="_blank">link</a> )</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>$ pacman -Ss bash-completion
+extra/bash-completion <span class="number">2.1</span>-<span class="number">2</span> [installed]
+</pre></td></tr></table></figure>
+
+<p>运行一下下面这个就搞定了, 目测gvim, emacs也中枪. 可以加在.bashrc里.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>complete <span class="attribute">-f</span> <span class="attribute">-X</span> <span class="string">'*.@(o|so|so.!(conf)|a|rpm|gif|GIF|jp?(e)g|JP?(E)G|mp3|MP3|mp?(e)g|MPG|avi|AVI|asf|ASF|ogg|OGG|class|CLASS)'</span> vi vim gvim rvim view rview rgvim rgview gview emacs xemacs sxemacs kate kwrite
+</pre></td></tr></table></figure>
+
+<a id="more"></a>
+
+<h4 id="root-cause">root cause</h4>
+<p>如果按照wiki所说, 这个bug应该早就被fixed了, 我的版本是2.x. 所以, 最大可能是自己干了神马2B的事情 -,-</p>
+<p>奇怪的是bash-completion 是有这个规则的.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>oneyoung:/usr/share/bash-completion<span class="variable">$grep</span> <span class="string">"vim"</span> bash_completion -n
+<span class="number">1890</span>:_install_xspec <span class="string">'*.@(o|so|so.!(conf|*/*)|a|[rs]pm|gif|jp?(e)g|mp3|mp?(e)g|avi|asf|ogg|class)'</span> vi vim gvim rvim view rview rgvim rgview gview emacs xemacs sxemacs kate kwrite
+</pre></td></tr></table></figure>
+
+<p>然后, runtime也是有这个规则的. 肿么会卡住, 这不科学啊</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre>oneyoung:~<span class="variable">$complete</span> | grep vim 
+complete -F _filedir_xspec rvim
+complete -F _filedir_xspec gvim
+complete -F _filedir_xspec vim
+complete -F _filedir_xspec rgvim
+</pre></td></tr></table></figure>
+
+<p>突然想起来, 很久很久以前装过<code>chs_completion</code>, 在.bashrc的末尾还有这一块:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre><span class="comment">### chsdir start ###</span>
+. <span class="variable">$HOME</span>/bin/chs_completion
+PATH=<span class="variable">$PATH</span>:<span class="variable">$HOME</span>/bin
+<span class="comment">#export CHSDIR="{'n':'l'}"</span>
+complete -o filenames -F _filedir_xspec file
+<span class="comment">### chsdir finish. ###</span>
+</pre></td></tr></table></figure>
+
+<p>干掉这一段之后世界就清净了, 可能是chs_completion有bug, 很早之前装的, 好像什么用过, 索性就这样吧.</p>
+]]></content>
+    <summary type="html"><![CDATA[<p>本来home目录下的.bashrc用一个git维护着. 今天手贱, 在另一个目录下, 以为存在git, 直接git reset, 然后就悲剧了, home下面有些配置直接被干掉了 T.T</p>
+<p>然后就出现各种问题了, 发现bash中输入vim + TAB 之后就卡住了, 只能ctrl + C取消掉, 记得之前搞过, google了一通, 终于把它捞出来了.</p>
+<p>好像是bash-completion的问题 (REF: <a href="https://bbs.archlinux.org/viewtopic.php?id=115604" target="_blank">link</a> )</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>$ pacman -Ss bash-completion
+extra/bash-completion <span class="number">2.1</span>-<span class="number">2</span> [installed]
+</pre></td></tr></table></figure>
+
+<p>运行一下下面这个就搞定了, 目测gvim, emacs也中枪. 可以加在.bashrc里.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>complete <span class="attribute">-f</span> <span class="attribute">-X</span> <span class="string">'*.@(o|so|so.!(conf)|a|rpm|gif|GIF|jp?(e)g|JP?(E)G|mp3|MP3|mp?(e)g|MPG|avi|AVI|asf|ASF|ogg|OGG|class|CLASS)'</span> vi vim gvim rvim view rview rgvim rgview gview emacs xemacs sxemacs kate kwrite
+</pre></td></tr></table></figure>
+
+]]></summary>
+    
+      <category term="archlinux" scheme="http://oneyoung.im/tags/archlinux/"/>
+    
+      <category term="bash" scheme="http://oneyoung.im/tags/bash/"/>
+    
+      <category term="vim" scheme="http://oneyoung.im/tags/vim/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[计算n的阶乘末尾有多少个0]]></title>
+    <link href="http://oneyoung.im/2013/11/28/%E8%AE%A1%E7%AE%97n%E7%9A%84%E9%98%B6%E4%B9%98%E6%9C%AB%E5%B0%BE%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA0/"/>
+    <id>http://oneyoung.im/2013/11/28/计算n的阶乘末尾有多少个0/</id>
+    <published>2013-11-27T19:47:45.000Z</published>
+    <updated>2013-11-27T19:47:45.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>计算n的阶乘末尾有多少个0，例如5! = 120 末尾有1个0，10!= 3628800末尾有2个0。</p>
+</blockquote>
+<ul>
+<li>对于一个多因式相乘, 末尾有多少个0, 取决于有多少个10相乘.</li>
+<li>10的倍数也可以为结果贡献0, 比如10, 20, 30, 因此可以记为 P = i * 10</li>
+<li>10可以因式分解成5 <em> 2, 于是 P = i </em> 5 * 2</li>
+<li>对于n!, 共有1 <em> 2 </em> ... * n</li>
+</ul>
+<a id="more"></a>
+
+<p>观察如下满足的P值:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>P:	<span class="number">10</span>	<span class="number">20</span>	<span class="number">30</span>	<span class="number">40</span>	<span class="number">50</span>	<span class="keyword">...</span>
+i:	<span class="number">1</span>	<span class="number">2</span>	<span class="number">3</span>	<span class="number">4</span>	<span class="number">5</span>	<span class="keyword">...</span>
+<span class="number">5i</span>:	<span class="number">5</span>	<span class="number">10</span>	<span class="number">15</span>	<span class="number">20</span>	<span class="number">25</span>	<span class="keyword">...</span>
+<span class="number">2</span>:	<span class="number">2</span>	<span class="number">2</span>	<span class="number">2</span>	<span class="number">2</span>	<span class="number">2</span>	<span class="keyword">...</span>
+</pre></td></tr></table></figure>
+
+<p>对于11!来说, 1 <em> 2 </em> ... <em> 5 </em> ... <em> 10 </em> 11, 我们可以取出5和10这两个数, 它们各自只要一个2就可以组成10和20, 于是有2个零.
+也就是说, 对于n!阶乘来说, 只要看int(n / 5)就可以知道乘积末尾有几个零, 因为对于小因子(这里是2)来说, 阶乘前面很容易获得(从1阶乘到5 * i, 前面至少有i个2的倍数)</p>
+<ul>
+<li>还有一个值得注意的是100, 1000这种也是满足P的, 并且, 相比之前, 依次多加一个0: P = i <em> (5 </em> 2)^q 可以贡献q个0. 对于这种情况的处理, 可以采用叠加的方式, int(n / 5) 已经为10 <em> i计入一个0了, int(n / 25) 为100 </em> i再计入一个, 依次类推, 就可以完成计数.</li>
+<li>此算法T(n) = O(log(n))</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">factorial_tail_zeros</span><span class="params">(n)</span>:</span>
+    zeros = <span class="number">0</span>
+    exp = <span class="number">1</span>
+    <span class="keyword">while</span> <span class="number">1</span>:
+        base = <span class="number">5</span> ** exp
+        num = n / base
+        <span class="keyword">if</span> num == <span class="number">0</span>:
+            <span class="keyword">break</span>
+        zeros += num
+        exp += <span class="number">1</span>
+    <span class="keyword">return</span> zeros
+</pre></td></tr></table></figure>
+
+<p>还可以对while循环的除法做一下优化:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">factorial_tail_zeros</span><span class="params">(n)</span>:</span>
+    <span class="string">''' get num of tail zeros of n! '''</span>
+    zeros = <span class="number">0</span>
+    dividend = n
+    <span class="keyword">while</span> <span class="number">1</span>:
+        dividend = dividend / <span class="number">5</span>
+        <span class="keyword">if</span> dividend == <span class="number">0</span>:
+            <span class="keyword">break</span>
+        zeros += dividend
+    <span class="keyword">return</span> zeros
+</pre></td></tr></table></figure>
+
+<h5 id="-n-">扩展到任意N进制.</h5>
+<ul>
+<li>套用前面的分析, 我们假设有个熊孩子闲的蛋疼, 用了变态的6进制, P = i <em> 2 </em> 3. 因此, 只需考虑最大的因子3, 将上面函数5换成3即可.</li>
+<li>对于2进制, 很简单, 最大因子就是2; 那对于16进制来说呢? 我们可以先算出2进制下的0个数, 然后在除以4就行了(16 = 2 ^ 4). 直接用16算反而会出问题, 因为不是质数, 4 * 4 也可以满足.</li>
+<li>好了, 对于24进制, P = i <em> 3 </em> (2 <em> 2 </em> 2) = i <em> 3 </em> 8, 取8为因子, 先算出2进制0个数, 最后, 除以3就是24进制下末尾0的个数.</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">factorize</span><span class="params">(n)</span>:</span>
+    <span class="string">''' simple facorize function for small integer '''</span>
+    factors = []
+    num = n
+    <span class="keyword">for</span> i <span class="keyword">in</span> xrange(<span class="number">2</span>, n / <span class="number">2</span> + <span class="number">1</span>):
+        <span class="keyword">if</span> num % i == <span class="number">0</span>:
+            factors.append(i)
+            factors += factorize(num / i)
+            <span class="keyword">break</span>
+    <span class="keyword">if</span> <span class="keyword">not</span> factors:  <span class="comment"># n is prime</span>
+        factors.append(n)
+    <span class="keyword">return</span> factors
+
+
+<span class="function"><span class="keyword">def</span> <span class="title">factorial_tail_zeros_nbase</span><span class="params">(n, base=<span class="number">10</span>)</span>:</span>
+    base_factors = factorize(base)
+    factors_map = {}  <span class="comment"># {factor: pow} map</span>
+    <span class="keyword">for</span> f <span class="keyword">in</span> base_factors:
+        factors_map[f] = factors_map.get(f, <span class="number">0</span>) + <span class="number">1</span>
+    <span class="comment"># get the biggest factor</span>
+    max_factor = max(factors_map.keys(), key=<span class="keyword">lambda</span> k: factors_map[k] * k)
+
+    <span class="comment"># get zeros at max_factor</span>
+    zeros = <span class="number">0</span>
+    dividend = n
+    <span class="keyword">while</span> <span class="number">1</span>:
+        dividend = dividend / max_factor
+        <span class="keyword">if</span> dividend == <span class="number">0</span>:
+            <span class="keyword">break</span>
+        zeros += dividend
+
+    <span class="comment"># result should divided by pow of max_factor</span>
+    <span class="keyword">return</span> zeros / factors_map[max_factor]
+</pre></td></tr></table></figure>
+
+]]></content>
+    <summary type="html"><![CDATA[<blockquote>
+<p>计算n的阶乘末尾有多少个0，例如5! = 120 末尾有1个0，10!= 3628800末尾有2个0。</p>
+</blockquote>
+<ul>
+<li>对于一个多因式相乘, 末尾有多少个0, 取决于有多少个10相乘.</li>
+<li>10的倍数也可以为结果贡献0, 比如10, 20, 30, 因此可以记为 P = i * 10</li>
+<li>10可以因式分解成5 <em> 2, 于是 P = i </em> 5 * 2</li>
+<li>对于n!, 共有1 <em> 2 </em> ... * n</li>
+</ul>
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="algrithms" scheme="http://oneyoung.im/tags/algrithms/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[operator module 加速简单函数]]></title>
+    <link href="http://oneyoung.im/2013/10/25/%5Bpython%5D-operator-module-%E5%8A%A0%E9%80%9F%E7%AE%80%E5%8D%95%E5%87%BD%E6%95%B0/"/>
+    <id>http://oneyoung.im/2013/10/25/[python]-operator-module-加速简单函数/</id>
+    <published>2013-10-25T00:44:42.000Z</published>
+    <updated>2013-11-28T00:44:07.000Z</updated>
+    <content type="html"><![CDATA[<p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
+    <span class="keyword">return</span> x + y
+</pre></td></tr></table></figure>
+
+<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
+<h4 id="-lambda-">与lambda对比测试</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
+<span class="number">0.17214393615722656</span>
+<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
+<span class="number">0.11670303344726562</span>
+</pre></td></tr></table></figure>
+
+<p>单个函数看, 有30%的效率提升.</p>
+<a id="more"></a>
+
+<h4 id="-">应用场景</h4>
+<p>operator可以应用在iter进行大量迭代计算时候使用(比如map, filter, reduce等), 这种情况下使用lambda进行简单的计算, 比如简单的&quot;+&quot;操作, 用函数会有比较大的性能损失.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+</pre></td><td class="code"><pre><span class="keyword">from</span> profiler <span class="keyword">import</span> Timer
+<span class="keyword">import</span> operator
+
+
+<span class="keyword">with</span> Timer(<span class="keyword">True</span>):
+    l = xrange(<span class="number">1000000</span>)
+    reduce(<span class="keyword">lambda</span> x, y: x + y, l)
+
+
+<span class="keyword">with</span> Timer(<span class="keyword">True</span>):
+    l = xrange(<span class="number">1000000</span>)
+    reduce(operator.add, l)
+</pre></td></tr></table></figure>
+
+<p>运行结果如下, 效率可以提升超过一倍.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>elapsed <span class="built_in">time</span>: <span class="number">133.429050</span> ms
+elapsed <span class="built_in">time</span>: <span class="number">57.756186</span> ms
+</pre></td></tr></table></figure>
+
+<p><code>profiler.Timer</code>如下定义:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+</pre></td><td class="code"><pre><span class="comment"># profiler.py</span>
+<span class="keyword">import</span> time
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">Timer</span><span class="params">(object)</span>:</span>
+    <span class="string">''' a timer to record code excution time
+
+    example:
+        with Timer() as t:
+            test_func()
+        print "=&gt; elasped lpush: %s s" % t.secs
+    '''</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, verbose=False)</span>:</span>
+        self.verbose = verbose
+
+    <span class="function"><span class="keyword">def</span> <span class="title">__enter__</span><span class="params">(self)</span>:</span>
+        self.start = time.time()
+        <span class="keyword">return</span> self
+
+    <span class="function"><span class="keyword">def</span> <span class="title">__exit__</span><span class="params">(self, *args)</span>:</span>
+        self.end = time.time()
+        self.secs = self.end - self.start
+        self.msecs = self.secs * <span class="number">1000</span>  <span class="comment"># millisecs</span>
+        <span class="keyword">if</span> self.verbose:
+            <span class="keyword">print</span> <span class="string">'elapsed time: %f ms'</span> % self.msecs
+</pre></td></tr></table></figure>
+
+<h4 id="python2-7-">Python2.7的实现</h4>
+<p>operator 的各类操作是在<code>Modules/operator.c</code>里定义的, 还是以<code>add</code>为栗子.</p>
+<p><code>operator.add</code>就是以CPython实现的, 本质上就是对<code>PyNumber_Add</code>的一个封装.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+</pre></td><td class="code"><pre><span class="comment">/* Modules/operator.c */</span>
+<span class="comment">/* 这个宏做了一个函数封装 */</span>
+<span class="preprocessor">#define spam2(OP,AOP) static PyObject *OP(PyObject *s, PyObject *a) { \</span>
+  PyObject *a1, *a2; \
+    <span class="keyword">if</span>(! PyArg_UnpackTuple(a,<span class="preprocessor">#OP,2,2,&a1,&a2)) return NULL; \</span>
+		  <span class="keyword">return</span> AOP(a1,a2); }
+...
+spam2(op_add           , PyNumber_Add)
+...
+
+<span class="preprocessor">#undef spam2</span>
+<span class="preprocessor">#define spam2(OP,ALTOP,DOC) {#OP, op_##OP, METH_VARARGS, PyDoc_STR(DOC)}, \</span>
+                           {<span class="preprocessor">#ALTOP, op_##OP, METH_VARARGS, PyDoc_STR(DOC)},</span>
+
+<span class="keyword">struct</span> PyMethodDef operator_methods[] = {
+	...
+	<span class="comment">/* 这里PyMethodDef.ml_meth 就是"op_add", 也就是先前定义的'spam2(op_add, PyNumber_Add)' */</span>
+	spam2(add,__add__, <span class="string">"add(a, b) -- Same as a + b."</span>)
+	...
+}
+
+PyMODINIT_FUNC
+initoperator(<span class="keyword">void</span>)  <span class="comment">// operator module 初始化代码</span>
+{
+	PyObject *m;
+
+		<span class="comment">/* Create the module and add the functions */</span>
+		<span class="comment">/* 将operator_methods绑定到operator module */</span>
+			m = Py_InitModule4(<span class="string">"operator"</span>, operator_methods, operator_doc,
+						   (PyObject*)NULL, PYTHON_API_VERSION);
+	...
+}
+</pre></td></tr></table></figure>
+
+<p><code>PyMethodDef</code>的定义如下:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre><span class="comment">/* Include/methodobject.h */</span>
+<span class="keyword">struct</span> PyMethodDef {
+    <span class="keyword">const</span> <span class="keyword">char</span>	*ml_name;	<span class="comment">/* The name of the built-in function/method */</span>
+    PyCFunction  ml_meth;	<span class="comment">/* The C function that implements it */</span>
+    <span class="keyword">int</span>		 ml_flags;	<span class="comment">/* Combination of METH_xxx flags, which mostly
+				   describe the args expected by the C func */</span>
+    <span class="keyword">const</span> <span class="keyword">char</span>	*ml_doc;	<span class="comment">/* The __doc__ attribute, or NULL */</span>
+};
+<span class="keyword">typedef</span> <span class="keyword">struct</span> PyMethodDef PyMethodDef;
+</pre></td></tr></table></figure>
+
+]]></content>
+    <summary type="html"><![CDATA[<p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
+    <span class="keyword">return</span> x + y
+</pre></td></tr></table></figure>
+
+<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
+<h4 id="-lambda-">与lambda对比测试</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
+<span class="number">0.17214393615722656</span>
+<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
+<span class="number">0.11670303344726562</span>
+</pre></td></tr></table></figure>
+
+<p>单个函数看, 有30%的效率提升.</p>
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[python] garbage collection 和 weakref]]></title>
+    <link href="http://oneyoung.im/2013/10/22/%5Bpython%5D-garbage-collection-%E5%92%8C-weakref/"/>
+    <id>http://oneyoung.im/2013/10/22/[python]-garbage-collection-和-weakref/</id>
+    <published>2013-10-21T23:26:50.000Z</published>
+    <updated>2013-11-28T00:46:08.000Z</updated>
+    <content type="html"><![CDATA[<p>默认情况下, <em>引用计数(ref count)</em> 已经能cover大部分管理, 被引用时候, 计数加一, 去引用时候, 减一;计数为零时候触发回收操作(对象不一定被销毁, python里有很多对象缓冲池).</p>
+<h3 id="problem-1-">Problem 1: 循环引用</h3>
+<p>引用计数有一个致命的缺点, 当出现循环引用的时候, 就无效了.</p>
+<p>为此, python gc collection 为此而生. 监控循环引用.</p>
+<p>首先, 定义一个函数触发gc机制(默认是有一个阀值才会触发, 这里我们可以调用<code>gc.collect()</code>手动触发).</p>
+<a id="more"></a>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+</pre></td><td class="code"><pre><span class="keyword">import</span> gc
+<span class="keyword">from</span> pprint <span class="keyword">import</span> pprint
+
+gc.set_debug(gc.DEBUG_COLLECTABLE | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_INSTANCES | gc.DEBUG_OBJECTS)
+
+
+<span class="function"><span class="keyword">def</span> <span class="title">collect_and_show_garbage</span><span class="params">()</span>:</span>
+    <span class="string">"Show what garbage is present."</span>
+    <span class="keyword">print</span> <span class="string">'Collecting...'</span>
+    n = gc.collect()  <span class="comment"># return num of objects collected</span>
+    <span class="keyword">print</span> <span class="string">'Unreachable objects:'</span>, n
+    <span class="keyword">print</span> <span class="string">'Garbage:'</span>,
+    pprint(gc.garbage)
+</pre></td></tr></table></figure>
+
+<p>考虑如下的例子, l1和l2相互引用. 在被del后, 其实还占用这内存.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>l1 = []
+l2 = []
+
+l1.append(l2)
+l2.append(l1)
+
+<span class="keyword">del</span> l1, l2
+
+<span class="comment"># trigger gc</span>
+collect_and_show_garbage()
+</pre></td></tr></table></figure>
+
+<p>结果如下所示, gc 把l1和l2这两个循环引用的对象回收了.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre>id(l1) <span class="number">0x7fae1f4ff6c8</span> id(l2) <span class="number">0x7fae1f4f5e18</span>
+Collecting...
+gc: collectable &lt;list <span class="number">0x7fae1f4ff6c8</span>&gt;
+gc: collectable &lt;list <span class="number">0x7fae1f4f5e18</span>&gt;
+Unreachable objects: <span class="number">2</span>
+Garbage:[]
+</pre></td></tr></table></figure>
+
+<h3 id="problem-2-">Problem 2: 不可回收对象</h3>
+<h4 id="-gc-garbage-">垃圾箱 <code>gc.garbage</code></h4>
+<p>注意到, 我们在<code>collect_and_show_garbage()</code>最后还打印了<code>gc.garbage</code>这个东西, 根据python gc的文档:</p>
+<blockquote>
+<p><em>gc.garbage</em>: A list of objects which the collector found to be unreachable but could not be freed (uncollectable objects). By default, this list contains only objects with <code>__del__()</code> methods.</p>
+</blockquote>
+<p>这是收集已经被gc检测出来无效的对象, 但是还不能被回收的垃圾场.
+<em>那什么时候对象无法被自动回收呢?</em>  -- 就是定义了<code>__del__()</code>析构函数的对象.</p>
+<h4 id="-">一个栗子</h4>
+<p>我们来看下面的例子:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">test_class</span><span class="params">(cls)</span>:</span>
+    <span class="keyword">if</span> <span class="string">'__del__'</span> <span class="keyword">in</span> dir(cls):
+        <span class="keyword">print</span> <span class="string">"%s has __del__ ops"</span> % cls
+    <span class="keyword">else</span>:
+        <span class="keyword">print</span> <span class="string">"%s has NOT __del__ ops"</span> % cls
+    c0 = cls()
+    c1 = cls()
+
+    <span class="comment"># cross reference to each other</span>
+    c0.set(c1)
+    c1.set(c0)
+
+    <span class="comment"># del symbol</span>
+    <span class="keyword">del</span> c0, c1
+
+    <span class="comment"># trigger gc mechanism</span>
+    <span class="keyword">print</span> <span class="string">"######Trigger GC###########"</span>
+    collect_and_show_garbage()
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">A</span><span class="params">(object)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">set</span><span class="params">(self, obj)</span>:</span>
+        self.obj = obj
+
+test_class(A)
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">B</span><span class="params">(A)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">__del__</span><span class="params">(self)</span>:</span>
+        <span class="keyword">print</span> <span class="string">'del %s'</span> % self
+
+test_class(B)
+</pre></td></tr></table></figure>
+
+<p>结果如下所示, 对于<code>class A</code>, 可以被gc回收；但是对于<code>class B</code>就悲剧了, 它定义了<code>__del__</code>, 因此无法被回收, 暂时保存在垃圾堆里<code>gc.garbage</code>. 如果, 没有手动回收的话, 这些熊孩子就会一直呆在这里(memory leak).</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+</pre></td><td class="code"><pre><span class="tag">&lt;<span class="title">class</span> '<span class="attribute">__main__.A</span>'&gt;</span> has NOT __del__ ops
+######Trigger GC###########
+Collecting...
+gc: collectable <span class="tag">&lt;<span class="title">A</span> <span class="attribute">0x7ff2dd2d2f90</span>&gt;</span>
+gc: collectable <span class="tag">&lt;<span class="title">A</span> <span class="attribute">0x7ff2dd2d2fd0</span>&gt;</span>
+gc: collectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x16f11f0</span>&gt;</span>
+gc: collectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x177fea0</span>&gt;</span>
+Unreachable objects: 4
+Garbage:[]
+<span class="tag">&lt;<span class="title">class</span> '<span class="attribute">__main__.B</span>'&gt;</span> has __del__ ops
+######Trigger GC###########
+Collecting...
+gc: uncollectable <span class="tag">&lt;<span class="title">B</span> <span class="attribute">0x7ff2dd2d2fd0</span>&gt;</span>
+gc: uncollectable <span class="tag">&lt;<span class="title">B</span> <span class="attribute">0x7ff2dd2ba050</span>&gt;</span>
+gc: uncollectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x177fea0</span>&gt;</span>
+gc: uncollectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x17800e0</span>&gt;</span>
+Unreachable objects: 4
+Garbage:[<span class="tag">&lt;<span class="title">__main__.B</span> <span class="attribute">object</span> <span class="attribute">at</span> <span class="attribute">0x7ff2dd2d2fd0</span>&gt;</span>, <span class="tag">&lt;<span class="title">__main__.B</span> <span class="attribute">object</span> <span class="attribute">at</span> <span class="attribute">0x7ff2dd2ba050</span>&gt;</span>]
+</pre></td></tr></table></figure>
+
+<p>因此, <em>对于定义了<code>__del__</code>的类，需要手动回收的介入了．</em></p>
+<h4 id="-weakref-module-">解决办法: <code>weakref module</code></h4>
+<p>python 提供了<code>weakref</code> module 可以处理这种情况. 它提供了一种机制, 通过weakref 引用的对象, 不会影响正常引用计数, gc可以回收weakref对象, 即使weakref还被引用着.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+</pre></td><td class="code"><pre><span class="keyword">import</span> weakref
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(A)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">set</span><span class="params">(self, obj)</span>:</span>
+        self.obj = weakref.ref(obj)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">__del__</span><span class="params">(self)</span>:</span>
+        <span class="keyword">print</span> <span class="string">'del %s'</span> % self
+
+
+test_class(C)
+</pre></td></tr></table></figure>
+
+<p>从结果可以看到, C不用触发gc就被回收了.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>&lt;<span class="class"><span class="keyword">class</span> '<span class="title">__main__</span>.<span class="title">C</span>'&gt; <span class="title">has</span> <span class="title">__del__</span> <span class="title">ops</span></span>
+del &lt;__main__.C <span class="class"><span class="keyword">object</span> <span class="title">at</span> 0<span class="title">x7fae6bee7e10</span>&gt;</span>
+del &lt;__main__.C <span class="class"><span class="keyword">object</span> <span class="title">at</span> 0<span class="title">x7fae6bee2150</span>&gt;</span>
+######Trigger GC###########
+Collecting...
+Unreachable objects: <span class="number">0</span>
+Garbage:[]
+</pre></td></tr></table></figure>
+
+]]></content>
+    <summary type="html"><![CDATA[<p>默认情况下, <em>引用计数(ref count)</em> 已经能cover大部分管理, 被引用时候, 计数加一, 去引用时候, 减一;计数为零时候触发回收操作(对象不一定被销毁, python里有很多对象缓冲池).</p>
+<h3 id="problem-1-">Problem 1: 循环引用</h3>
+<p>引用计数有一个致命的缺点, 当出现循环引用的时候, 就无效了.</p>
+<p>为此, python gc collection 为此而生. 监控循环引用.</p>
+<p>首先, 定义一个函数触发gc机制(默认是有一个阀值才会触发, 这里我们可以调用<code>gc.collect()</code>手动触发).</p>
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[[python] array of empty list]]></title>
+    <link href="http://oneyoung.im/2013/08/25/%5Bpython%5D-array-of-empty-list/"/>
+    <id>http://oneyoung.im/2013/08/25/[python]-array-of-empty-list/</id>
+    <published>2013-08-25T03:32:00.000Z</published>
+    <updated>2013-08-25T03:33:46.000Z</updated>
+    <content type="html"><![CDATA[<p>in bucket sort, I want to generate a array of empty bucket, so I did in this way:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l = [[]] * <span class="number">3</span>
+<span class="prompt">&gt;&gt;&gt; </span>l
+[[], [], []]
+</pre></td></tr></table></figure>
+
+<p>Then the problem is when I try to append one element to bucket[0], it affects all the rest.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l[<span class="number">0</span>].append(<span class="number">1</span>)
+<span class="prompt">&gt;&gt;&gt; </span>l
+[[<span class="number">1</span>], [<span class="number">1</span>], [<span class="number">1</span>]]
+</pre></td></tr></table></figure>
+
+<a id="more"></a>
+
+<p>In fact, the member of the array all refer to the same object.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="code"><pre>
+<span class="prompt">&gt;&gt;&gt; </span><span class="keyword">for</span> lo <span class="keyword">in</span> l:
+<span class="prompt">... </span>    <span class="keyword">print</span> id(lo)
+<span class="prompt">... </span>    
+<span class="prompt">... </span>
+<span class="number">155255468</span>
+<span class="number">155255468</span>
+<span class="number">155255468</span>
+</pre></td></tr></table></figure>
+
+<p>So in this situation, <code>[[]] * 3</code> python just do a swallow copy. So it&#39;s better to apply this to only immutable objects. The right way but still eleglant is to use list comprehension.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l2 = [[] <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">3</span>)]
+<span class="prompt">&gt;&gt;&gt; </span>l2
+[[], [], []]
+<span class="prompt">&gt;&gt;&gt; </span><span class="keyword">for</span> lo <span class="keyword">in</span> l2:
+<span class="prompt">... </span>    <span class="keyword">print</span> id(lo)
+<span class="prompt">... </span>    
+<span class="prompt">... </span>
+<span class="number">155291020</span>
+<span class="number">155257292</span>
+<span class="number">155254988</span>
+</pre></td></tr></table></figure>
+
+<p>Every time, a new empty list is created.</p>
+]]></content>
+    <summary type="html"><![CDATA[<p>in bucket sort, I want to generate a array of empty bucket, so I did in this way:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l = [[]] * <span class="number">3</span>
+<span class="prompt">&gt;&gt;&gt; </span>l
+[[], [], []]
+</pre></td></tr></table></figure>
+
+<p>Then the problem is when I try to append one element to bucket[0], it affects all the rest.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l[<span class="number">0</span>].append(<span class="number">1</span>)
+<span class="prompt">&gt;&gt;&gt; </span>l
+[[<span class="number">1</span>], [<span class="number">1</span>], [<span class="number">1</span>]]
+</pre></td></tr></table></figure>
+
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[new-style class in Python2]]></title>
+    <link href="http://oneyoung.im/2013/08/21/new-style-class-in-Python2/"/>
+    <id>http://oneyoung.im/2013/08/21/new-style-class-in-Python2/</id>
+    <published>2013-08-21T00:59:19.000Z</published>
+    <updated>2013-11-14T01:03:10.000Z</updated>
+    <content type="html"><![CDATA[<p>Definition of <code>new-style class</code> in python</p>
+<blockquote>
+<p><em><a href="http://docs.python.org/2/glossary.html#term-new-style-class" target="_blank">new-style class</a></em>
+Any class which inherits from object. This includes all built-in types like list and dict. Only new-style classes can use Python’s newer, versatile features like <code>__slots__</code>, descriptors, properties, and <code>__getattribute__()</code>.</p>
+</blockquote>
+<p>简单来说, <em>new-style class</em> 就是继承与<code>object</code>基类的class. 来看一个例子:</p>
+<a id="more"></a>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+</pre></td><td class="code"><pre>&gt;&gt;&gt; class A: pass
+... 
+&gt;&gt;&gt; 
+&gt;&gt;&gt; class B(object): pass
+... 
+&gt;&gt;&gt; 
+&gt;&gt;&gt; type(A)
+&lt;type 'classobj'&gt;
+&gt;&gt;&gt; type(B)
+&lt;type 'type'&gt;
+&gt;&gt;&gt; isinstance(A, type)
+False
+&gt;&gt;&gt; isinstance(B, type)
+True
+
+&gt;&gt;&gt; dir(A)
+['__doc__', '__module__']
+&gt;&gt;&gt; dir(B)
+['__class__', '__delattr__', '__dict__', '__doc__', '__format__', '__getattribu
+te__', '__hash__', '__init__', '__module__', '__new__', '__reduce__', '__reduce
+_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__',
+ '__weakref__']
+</pre></td></tr></table></figure>
+
+<p>可以看出来classic-style A的type是<code>classobj</code>, 而new-style B的type是object. 先比于classic-style, new-style 的class支持更多bulitin的操作.</p>
+<p>再来看看它们的instance. <code>a</code>是<code>instance</code>, 而<code>b</code>是<code>object</code>.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>&gt;&gt;&gt; a = <span class="type">A</span>()
+&gt;&gt;&gt; a.__class__()
+&lt;__main__.<span class="type">A</span> <span class="keyword">instance</span> at <span class="number">0x24107a0</span>&gt;
+&gt;&gt;&gt; <span class="typedef"><span class="keyword">type</span><span class="container">(<span class="title">a</span>)</span></span>
+&lt;<span class="typedef"><span class="keyword">type</span> 'instance'&gt;</span>
+&gt;&gt;&gt; b= <span class="type">B</span>()
+&gt;&gt;&gt; b.__class__()
+&lt;__main__.<span class="type">B</span> object at <span class="number">0x7f937fb5a410</span>&gt;
+&gt;&gt;&gt; <span class="typedef"><span class="keyword">type</span><span class="container">(<span class="title">b</span>)</span></span>
+&lt;<span class="keyword">class</span> '__main__.<span class="type">B'</span>&gt;
+</pre></td></tr></table></figure>
+
+<p>值得注意的是<code>super()</code>只支持new-style class, 所以, 用于classic-style class 就会raise Type Error</p>
+<blockquote>
+<p>Note super() only works for new-style classes.</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span><span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(A)</span>:</span>
+<span class="prompt">... </span>    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span>
+<span class="prompt">... </span>        super(C, self).__init__()
+<span class="prompt">... </span>        
+<span class="prompt">... </span>    
+<span class="prompt">... </span>
+<span class="prompt">&gt;&gt;&gt; </span>c = C()
+Traceback (most recent call last):
+  File <span class="string">"&lt;input&gt;"</span>, line <span class="number">1</span>, <span class="keyword">in</span> &lt;module&gt;
+    File <span class="string">"&lt;input&gt;"</span>, line <span class="number">3</span>, <span class="keyword">in</span> __init__
+	TypeError: must be type, <span class="keyword">not</span> classobj
+
+<span class="prompt">&gt;&gt;&gt; </span><span class="class"><span class="keyword">class</span> <span class="title">D</span><span class="params">(B)</span>:</span>
+<span class="prompt">... </span>    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span>
+<span class="prompt">... </span>        super(D, self).__init__()
+<span class="prompt">... </span>        
+<span class="prompt">... </span>    
+<span class="prompt">... </span>
+<span class="prompt">&gt;&gt;&gt; </span>d = D()
+&gt;&gt;&gt;
+</pre></td></tr></table></figure>
+
+<h4 id="ref">Ref</h4>
+<p><a href="http://docs.python.org/2/reference/datamodel.html" target="_blank">python doc</a></p>
+<p><a href="http://stackoverflow.com/questions/9698614/super-raises-typeerror-must-be-type-not-classobj-for-new-style-class" target="_blank">stackoverflow</a></p>
+]]></content>
+    <summary type="html"><![CDATA[<p>Definition of <code>new-style class</code> in python</p>
+<blockquote>
+<p><em><a href="http://docs.python.org/2/glossary.html#term-new-style-class" target="_blank">new-style class</a></em>
+Any class which inherits from object. This includes all built-in types like list and dict. Only new-style classes can use Python’s newer, versatile features like <code>__slots__</code>, descriptors, properties, and <code>__getattribute__()</code>.</p>
+</blockquote>
+<p>简单来说, <em>new-style class</em> 就是继承与<code>object</code>基类的class. 来看一个例子:</p>
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Setup a mail server to send email only]]></title>
+    <link href="http://oneyoung.im/2013/07/20/Setup-a-mail-server-to-send-email-only/"/>
+    <id>http://oneyoung.im/2013/07/20/Setup-a-mail-server-to-send-email-only/</id>
+    <published>2013-07-20T07:58:17.000Z</published>
+    <updated>2013-11-28T00:48:00.000Z</updated>
+    <content type="html"><![CDATA[<h3 id="smtp-server">SMTP server</h3>
+<p>Here I just choose postfix.
+Someone on the Internet said the configuration was very complicated, but after I install postfix, I found the default config file is OK if you just want to send email from you locathost.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install postfix
+</pre></td></tr></table></figure>
+
+<p>At first time when you test sending email, you might encount with such error:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>postdrop: warning: unable <span class="built_in">to</span> look up public/pickup: 
+No such <span class="built_in">file</span> <span class="operator">or</span> <span class="built_in">directory</span>
+</pre></td></tr></table></figure>
+
+<p>That&#39;s because old sendmail daemon still running, just stop it and restart postfix can fix:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>$ <span class="built_in">sudo</span> /etc/init.d/sendmail stop 
+$ <span class="built_in">sudo</span>  mkfifo /var/spool/postfix/public/pickup
+$ <span class="built_in">sudo</span> /etc/init.d/postfix restart
+</pre></td></tr></table></figure>
+
+<a id="more"></a>
+
+<h3 id="dns-mx-field">DNS <code>MX</code> field</h3>
+<p>Make sure your dns has MX field, here I don&#39;t add any prefix to my domain, just as the origin.
+Here I take my domain &#39;one-young.com&#39; for example.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>$ dig -t MX one-young.com
+
+;; ANSWER SECTION:
+one-young.com.          <span class="number">3600</span>    IN      MX      <span class="number">0</span> one-young.com.
+</pre></td></tr></table></figure>
+
+<h3 id="dkim">DKIM</h3>
+<h4 id="add-dkim-field-to-your-domain-record">Add DKIM field to your domain record</h4>
+<h5 id="first-install-required-packages-we-need-opendkim-tools-in-order-to-get-i-opendkim-genkey-">First, install required packages (we need opendkim-tools in order to get i<code>opendkim-genkey</code>):</h5>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install opendkim opendkim-tools
+</pre></td></tr></table></figure>
+
+<h5 id="generate-keys-for-later-use-">Generate keys for later use:</h5>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre>opendkim-genkey -r <span class="operator">-d</span> one-young.com <span class="operator">-s</span> default
+<span class="comment"># -r option indicate this key is for email use only, -d follow the domain.</span>
+<span class="comment"># -s for selector name, that is to say you can have multiple keys,</span>
+<span class="comment">#    and use the selector to determine which one to use.</span>
+<span class="comment">#    here we just use 'default'</span>
+</pre></td></tr></table></figure>
+
+<p>after run this command, will generate two file in current dir:</p>
+<ul>
+<li>&#39;SELECTOR.txt&#39; -- public key, you need to add in your domain txt field</li>
+<li>&#39;SELECTOR.private&#39; -- private key for opendkim use</li>
+</ul>
+<p>Here, since we use &#39;default&#39; as selector name, &#39;default.txt&#39; &amp; &#39;default.private&#39; will be generated.</p>
+<h5 id="add-dkim-key-to-your-domain">Add DKIM key to your domain</h5>
+<p>Below is the content of my default.txt</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="keyword">default</span>._domainkey	<span class="keyword">IN</span>	TXT	( <span class="string">"v=DKIM1; k=rsa; s=email; "</span>
+	  <span class="string">"p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDoyy7K+KFmXjuBMFtIpzMsfmouaI2479gbLMtixDRQAD3UBD58n9yPlpvYm9lRIlAUL4WgNRARA6CjTLBUdO6TMDsrYP3FhrgyWIB3HvesuZU+IVoGFq3FHDsCl+Ah9FiS9LsYWPo3UcMJB1g0Qeamm6e+uJrVe5UVUKKPYoJ+QwIDAQAB"</span> )  ; ----- DKIM <span class="keyword">key</span> <span class="keyword">default</span> <span class="keyword">for</span> one-young.com
+</pre></td></tr></table></figure>
+
+<p>So we can add a TXT entry in your domain record.</p>
+<ul>
+<li>host -- <code>SELECTOR._domainkey.YOURDOMAIN</code>, here we use <code>default._domainkey.one-young.com</code></li>
+<li>value -- paste the content of <code>()</code>: <code>v=DKIM1; k=rsa; s=email; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDoyy7K+KFmXjuBMFtIpzMsfmouaI2479gbLMtixDRQAD3UBD58n9yPlpvYm9lRIlAUL4WgNRARA6CjTLBUdO6TMDsrYP3FhrgyWIB3HvesuZU+IVoGFq3FHDsCl+Ah9FiS9LsYWPo3UcMJB1g0Qeamm6e+uJrVe5UVUKKPYoJ+QwIDAQAB</code></li>
+</ul>
+<p>Let&#39;s check out the result:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>$ dig  -t txt default._domainkey.one-young.com
+
+;; ANSWER SECTION:
+default._domainkey.one-young.com. <span class="number">3599</span> IN TXT   <span class="string">"v=DKIM1\; k=rsa\; s=email\; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDoyy7K+KFmXjuBMFtIpzMsfmouaI2479gbLMtixDRQAD3UBD58n9yPlpvYm9lRIlAUL4WgNRARA6CjTLBUdO6TMDsrYP3FhrgyWIB3HvesuZU+IVoGFq3FHDsCl+Ah9FiS9LsYWPo3UcMJB1g0Qeamm6e+uJrVe5UVUKKPYoJ+QwIDAQAB"</span>
+</pre></td></tr></table></figure>
+
+<h5 id="have-a-check">have a check</h5>
+<p><a href="http://dkimcore.org/tools/" target="_blank">DkimCore</a> provide a good tools to valid your DNS dkim fields, you can have a check.</p>
+<h4 id="use-opendkim-to-sign-your-email">use <code>opendkim</code> to sign your email</h4>
+<h5 id="config-opendkim">config opendkim</h5>
+<p>opendkim config locate in <code>/etc/opendkim.conf</code>, add the below fileds to your config file.
+If you need more options, you can <code>man opendkim.conf</code> for more information.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+</pre></td><td class="code"><pre><span class="comment"># this is the uid of postfix, you can get by `id postfix`</span>
+<span class="title">UMask</span>			<span class="number">107</span>
+
+<span class="comment"># host config</span>
+ExternalIgnoreList      <span class="url">refile:/etc/opendkim/TrustedHosts</span>
+InternalHosts           <span class="url">refile:/etc/opendkim/TrustedHosts</span>
+KeyTable                <span class="url">refile:/etc/opendkim/KeyTable</span>
+SigningTable            <span class="url">refile:/etc/opendkim/SigningTable</span>
+
+<span class="comment"># run in both signing and validate mode</span>
+Mode					sv
+
+<span class="comment"># we set up a socket for postfix dameon connection</span>
+Socket inet:<span class="number">9999</span><span class="variable">@localhost</span>
+
+<span class="comment"># misc config below, not necessary if you don't want</span>
+Canonicalization        relaxed/relaxed
+SignatureAlgorithm      rsa-sha256
+
+AutoRestart             <span class="built_in">yes</span>
+Background              <span class="built_in">yes</span>
+
+LogResults 		<span class="built_in">yes</span>
+Statistics              /var/log/dkim-stats
+</pre></td></tr></table></figure>
+
+<p>We can see in host config section, we add 3 files here.</p>
+<ul>
+<li><p>/etc/opendkim/TrustedHosts -- a list of servers to “trust” when signing or verifying</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre><span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>
+localhost
+<span class="constant">one</span>-young.me
+</pre></td></tr></table></figure>
+</li>
+<li><p>/etc/opendkim/KeyTable -- seclector index to our keys. <em>make sure opendkim can access key files</em>: you can chown to opendkim <code>sudo chown opendkim PATH_TO_YOUR_PRIVATE_KEYS</code></p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="keyword">default</span>._domainkey.one-young.com one-young.com:<span class="keyword">default</span>:/<span class="keyword">var</span>/db/dkim/<span class="keyword">default</span>.<span class="keyword">private</span>
+</pre></td></tr></table></figure>
+</li>
+<li><p>/etc/opendkim/SigningTable --  a list of domains and accounts allowed to sign. The below example means email at <code>one-young.com</code> domain should use default keys to sign.</p>
+</li>
+</ul>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>*@one-young<span class="preprocessor">.com</span> default._domainkey<span class="preprocessor">.one</span>-young<span class="preprocessor">.com</span>
+</pre></td></tr></table></figure>
+
+<h5 id="after-you-have-done-this-you-can-restart-opendkim-to-take-effect">After you have done this, you can restart opendkim to take effect</h5>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>/etc/init.d/opendkim restart
+</pre></td></tr></table></figure>
+
+<h5 id="config-postfix-to-sign-email-by-opendkim">config postfix to sign email by opendkim</h5>
+<p>add the below lines to <code>/etc/postfix/main.cf</code></p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre><span class="setting">smtpd_milters= <span class="value">inet:localhost:<span class="number">9999</span></span></span>
+<span class="setting">milter_default_action = <span class="value">accept</span></span>
+<span class="setting">milter_protocol = <span class="value"><span class="number">2</span></span></span>
+<span class="setting">non_smtpd_milters = <span class="value">inet:localhost:<span class="number">9999</span></span></span>
+</pre></td></tr></table></figure>
+
+<p>Remember, we created a socket in opendkim at port 9999, here we redirect postfix to it.</p>
+<p>Be sure to restart postfix to take effect: <code>/etc/init.d/postfix restart</code></p>
+<h5 id="test">test</h5>
+<p>Now you can have a try on sending email, and check if DKIM head added.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">echo</span> <span class="string">"test"</span> | mail YOUR-OUTER-MAILBOX@xxx.com
+</pre></td></tr></table></figure>
+
+<p>if you have some problems, you can have a check at /var/log/mail.log</p>
+<h3 id="add-spf-field-to-increase-mail-delivery-rate">Add <code>SPF</code> field to increase mail delivery rate</h3>
+<p><code>SPF</code> is a txt field of domain record to check auth sending mail host.</p>
+<ul>
+<li>host -- domain name of you email host, typically MX record</li>
+<li>value -- <code>v=spf1 a mx ptr mx:one-young.com -all</code></li>
+</ul>
+<p>Let&#39;s check the result</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>$ dig -t txt one-young.com
+
+;; ANSWER SECTION:
+one-young.com.          <span class="number">3600</span>    IN      TXT     <span class="string">"v=spf1 a mx ptr mx:one-young.com -all"</span>
+</pre></td></tr></table></figure>
+
+<h3 id="config-ptr-to-enable-reverse-lookup">Config <code>PTR</code> to enable reverse lookup</h3>
+<p>Your domain service provider should have such options, for me, in Godaddy, just click a memu.</p>
+<p>Refs:
+<a href="http://www.quanlei.com/2012/06/3148.html" target="_blank">1</a>
+<a href="http://stevejenkins.com/blog/2010/09/how-to-get-dkim-domainkeys-identified-mail-working-on-centos-5-5-and-postfix-using-opendkim/" target="_blank">2</a>
+<a href="https://wiki.archlinux.org/index.php/OpenDKIM" target="_blank">3</a>
+<a href="http://linuxhostingsupport.net/blog/postfix-postdrop-unable-to-look-up-publicpickup-no-such-file-or-directory" target="_blank">4</a></p>
+]]></content>
+    <summary type="html"><![CDATA[<h3 id="smtp-server">SMTP server</h3>
+<p>Here I just choose postfix.
+Someone on the Internet said the configuration was very complicated, but after I install postfix, I found the default config file is OK if you just want to send email from you locathost.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install postfix
+</pre></td></tr></table></figure>
+
+<p>At first time when you test sending email, you might encount with such error:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>postdrop: warning: unable <span class="built_in">to</span> look up public/pickup: 
+No such <span class="built_in">file</span> <span class="operator">or</span> <span class="built_in">directory</span>
+</pre></td></tr></table></figure>
+
+<p>That&#39;s because old sendmail daemon still running, just stop it and restart postfix can fix:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>$ <span class="built_in">sudo</span> /etc/init.d/sendmail stop 
+$ <span class="built_in">sudo</span>  mkfifo /var/spool/postfix/public/pickup
+$ <span class="built_in">sudo</span> /etc/init.d/postfix restart
+</pre></td></tr></table></figure>
+
+]]></summary>
+    
+      <category term="web" scheme="http://oneyoung.im/tags/web/"/>
+    
+      <category term="mail" scheme="http://oneyoung.im/tags/mail/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Pyhton Naming Conventions ]]></title>
+    <link href="http://oneyoung.im/2013/03/24/Pyhton-Naming-Conventions-/"/>
+    <id>http://oneyoung.im/2013/03/24/Pyhton-Naming-Conventions-/</id>
+    <published>2013-03-23T22:48:01.000Z</published>
+    <updated>2013-11-14T01:03:22.000Z</updated>
+    <content type="html"><![CDATA[<h3 id="package-module">Package &amp; Module</h3>
+<ul>
+<li>名字尽量短, 全部使用<em>小写</em></li>
+<li>Module 在必要时可以使用下划线<code>_</code>, 而package则不建议.</li>
+<li>用C或者C++扩展的Module, 在前面加<code>_</code>(比如:<code>_socket</code>)</li>
+</ul>
+<h3 id="class-exception">Class &amp; Exception</h3>
+<ul>
+<li>统一使用<code>CapWords</code></li>
+<li>只在内部使用的类, 前面加<code>_</code>(比如<code>_CapWords</code>)</li>
+<li>对于Exception, 如果确实是错误的话, 加<code>Error</code>后缀</li>
+</ul>
+<a id="more"></a>
+
+<h3 id="constants">Constants</h3>
+<ul>
+<li>全部<em>大写</em>, 以下划线分词(比如<code>MAX_OVERFLOW</code>)</li>
+</ul>
+<h3 id="function-global-variables">Function &amp; Global Variables</h3>
+<ul>
+<li>全部<em>小写</em>, 以下划线分词(比如<code>joined_lower</code></li>
+<li><code>mixedCase</code>只有在为兼容先前代码才可使用</li>
+<li>全局变量应使用<code>__all__</code>机制, 避免在<code>from M import *</code>时, 被导出</li>
+</ul>
+<h3 id="method-attribute">Method &amp; Attribute</h3>
+<ul>
+<li>method的规则和function一样</li>
+<li>始终将<code>self</code>作为instance method的第一个参数名, <code>cls</code>作为class method的第一个参数名</li>
+<li>Attributes: <code>interface</code>, <code>_internal</code>, <code>__private</code></li>
+</ul>
+<p><strong>Reference:</strong> <br /></p>
+<ol>
+<li><a href="http://www.python.org/dev/peps/pep-0008/" target="_blank">PEP8 -- Style Guide for Python Code</a></li>
+<li><a href="http://python.net/~goodger/projects/pycon/2007/idiomatic/" target="_blank">Code Like a Pythonista: Idiomatic Python</a></li>
+</ol>
+]]></content>
+    <summary type="html"><![CDATA[<h3 id="package-module">Package &amp; Module</h3>
+<ul>
+<li>名字尽量短, 全部使用<em>小写</em></li>
+<li>Module 在必要时可以使用下划线<code>_</code>, 而package则不建议.</li>
+<li>用C或者C++扩展的Module, 在前面加<code>_</code>(比如:<code>_socket</code>)</li>
+</ul>
+<h3 id="class-exception">Class &amp; Exception</h3>
+<ul>
+<li>统一使用<code>CapWords</code></li>
+<li>只在内部使用的类, 前面加<code>_</code>(比如<code>_CapWords</code>)</li>
+<li>对于Exception, 如果确实是错误的话, 加<code>Error</code>后缀</li>
+</ul>
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[通过kernel Makefile 生成 cscope ctags]]></title>
+    <link href="http://oneyoung.im/2013/03/05/%E9%80%9A%E8%BF%87kernel-Makefile-%E7%94%9F%E6%88%90-cscope-ctags/"/>
+    <id>http://oneyoung.im/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/</id>
+    <published>2013-03-04T23:49:33.000Z</published>
+    <updated>2013-11-14T01:03:27.000Z</updated>
+    <content type="html"><![CDATA[<p>在kernel 中使用cscope 经常会出现很多的数据是没有用，比如一个函数被不同版本的驱动定义了很多次，而这些版本是我们不需要的，查找定义是会出现很多的选项，看得眼睛都花了 T.T </p>
+<p>于是写了一个脚本，通过kernel makefile 来生成这些数据库，这样查找就能很精确，一步到位 ^_^</p>
+<a id="more"></a>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+</pre></td><td class="code"><pre><span class="built_in">source</span>_file=/tmp/source.list
+include_file=/tmp/include.list
+output_file=cscope.files
+<span class="built_in">source</span>_file_temp=/tmp/<span class="built_in">source</span>_file_temp
+output_file_temp=/tmp/output.temp
+make clean
+make ARCH=arm CROSS_COMPILE=arm-eabi- CFLAGS_KERNEL=-H -j4 <span class="number">1</span>&gt;<span class="variable">$source_file</span> <span class="number">2</span>&gt;<span class="variable">$include_file</span>
+
+<span class="comment">#for test</span>
+<span class="comment">#source_file=source.list</span>
+<span class="comment">#include_file=include.list</span>
+<span class="comment">#output_file=cscope.files</span>
+<span class="comment">#source_file_temp=/tmp/source_file_temp</span>
+
+<span class="comment"># generate the include file</span>
+grep <span class="string">"^\.\+\ "</span> <span class="variable">$include_file</span> | awk <span class="string">'{print $NF}'</span> | sort -u &gt;<span class="variable">$output_file</span>
+
+<span class="comment"># generate the source file</span>
+grep <span class="string">"\(\&lt;CC\&gt;\|\&lt;AS\&gt;\|LOGO\)"</span> <span class="variable">$source_file</span> | awk <span class="string">'{print $NF}'</span> &gt;<span class="variable">$source_file_temp</span>
+<span class="keyword">for</span> i <span class="keyword">in</span> $(cat <span class="variable">$source_file_temp</span>)
+        <span class="keyword">do</span>
+                cc_<span class="built_in">source</span>=<span class="variable">${i%.o}</span>.c
+                as_<span class="built_in">source</span>=<span class="variable">${i%.o}</span>.S
+                <span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$cc_source</span> ]; <span class="keyword">then</span>
+                        <span class="built_in">echo</span> <span class="variable">$cc_source</span> &gt;&gt;<span class="variable">$output_file</span>
+                        <span class="keyword">else</span>
+                        <span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$as_source</span> ]; <span class="keyword">then</span>
+                                <span class="built_in">echo</span> <span class="variable">$as_source</span> &gt;&gt;<span class="variable">$output_file</span>
+                        <span class="keyword">fi</span>
+                <span class="keyword">fi</span>
+        <span class="keyword">done</span>
+
+mv <span class="variable">$output_file</span> <span class="variable">$output_file_temp</span> 
+<span class="keyword">for</span> i <span class="keyword">in</span> $(cat <span class="variable">$output_file_temp</span>)
+        <span class="keyword">do</span>
+                <span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$i</span> ]; <span class="keyword">then</span>
+                        <span class="built_in">echo</span> <span class="variable">$i</span> &gt;&gt;<span class="variable">$output_file</span>
+                <span class="keyword">fi</span>
+        <span class="keyword">done</span>
+
+rm <span class="variable">$output_file_temp</span> <span class="variable">$source_file_temp</span> <span class="variable">$source_file</span> <span class="variable">$include_file</span>
+rm cscope.*out*
+cscope -bkq -i <span class="variable">$output_file</span> 
+ctags -L <span class="variable">$output_file</span>
+</pre></td></tr></table></figure>
+
+<p>使用方法：先配置好.config， 使内核能正常编译。然后，在kernel 的目录下运行该脚本，就会自动生成。</p>
+<p>通过这个脚本，还可以生成一个文件列表 output.temp， 可以加快以后更新cscope 数据库的速度。</p>
+]]></content>
+    <summary type="html"><![CDATA[<p>在kernel 中使用cscope 经常会出现很多的数据是没有用，比如一个函数被不同版本的驱动定义了很多次，而这些版本是我们不需要的，查找定义是会出现很多的选项，看得眼睛都花了 T.T </p>
+<p>于是写了一个脚本，通过kernel makefile 来生成这些数据库，这样查找就能很精确，一步到位 ^_^</p>
+]]></summary>
+    
+      <category term="script" scheme="http://oneyoung.im/tags/script/"/>
+    
+      <category term="kernel" scheme="http://oneyoung.im/tags/kernel/"/>
+    
+      <category term="bash" scheme="http://oneyoung.im/tags/bash/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
+  
+</feed>

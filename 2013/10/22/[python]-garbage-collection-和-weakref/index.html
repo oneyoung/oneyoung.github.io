@@ -1,0 +1,457 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>[python] garbage collection 和 weakref | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta property="og:title" content="[python] garbage collection 和 weakref"/>
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content"><article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-10-21T23:26:50.000Z"><a href="/2013/10/22/[python]-garbage-collection-和-weakref/">2013-10-22</a></time>
+    
+    
+  
+    <h1 class="title">[python] garbage collection 和 weakref</h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>默认情况下, <em>引用计数(ref count)</em> 已经能cover大部分管理, 被引用时候, 计数加一, 去引用时候, 减一;计数为零时候触发回收操作(对象不一定被销毁, python里有很多对象缓冲池).</p>
+<h3 id="problem-1-">Problem 1: 循环引用</h3>
+<p>引用计数有一个致命的缺点, 当出现循环引用的时候, 就无效了.</p>
+<p>为此, python gc collection 为此而生. 监控循环引用.</p>
+<p>首先, 定义一个函数触发gc机制(默认是有一个阀值才会触发, 这里我们可以调用<code>gc.collect()</code>手动触发).</p>
+<a id="more"></a>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+</pre></td><td class="code"><pre><span class="keyword">import</span> gc
+<span class="keyword">from</span> pprint <span class="keyword">import</span> pprint
+
+gc.set_debug(gc.DEBUG_COLLECTABLE | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_INSTANCES | gc.DEBUG_OBJECTS)
+
+
+<span class="function"><span class="keyword">def</span> <span class="title">collect_and_show_garbage</span><span class="params">()</span>:</span>
+    <span class="string">"Show what garbage is present."</span>
+    <span class="keyword">print</span> <span class="string">'Collecting...'</span>
+    n = gc.collect()  <span class="comment"># return num of objects collected</span>
+    <span class="keyword">print</span> <span class="string">'Unreachable objects:'</span>, n
+    <span class="keyword">print</span> <span class="string">'Garbage:'</span>,
+    pprint(gc.garbage)
+</pre></td></tr></table></figure>
+
+<p>考虑如下的例子, l1和l2相互引用. 在被del后, 其实还占用这内存.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>l1 = []
+l2 = []
+
+l1.append(l2)
+l2.append(l1)
+
+<span class="keyword">del</span> l1, l2
+
+<span class="comment"># trigger gc</span>
+collect_and_show_garbage()
+</pre></td></tr></table></figure>
+
+<p>结果如下所示, gc 把l1和l2这两个循环引用的对象回收了.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre>id(l1) <span class="number">0x7fae1f4ff6c8</span> id(l2) <span class="number">0x7fae1f4f5e18</span>
+Collecting...
+gc: collectable &lt;list <span class="number">0x7fae1f4ff6c8</span>&gt;
+gc: collectable &lt;list <span class="number">0x7fae1f4f5e18</span>&gt;
+Unreachable objects: <span class="number">2</span>
+Garbage:[]
+</pre></td></tr></table></figure>
+
+<h3 id="problem-2-">Problem 2: 不可回收对象</h3>
+<h4 id="-gc-garbage-">垃圾箱 <code>gc.garbage</code></h4>
+<p>注意到, 我们在<code>collect_and_show_garbage()</code>最后还打印了<code>gc.garbage</code>这个东西, 根据python gc的文档:</p>
+<blockquote>
+<p><em>gc.garbage</em>: A list of objects which the collector found to be unreachable but could not be freed (uncollectable objects). By default, this list contains only objects with <code>__del__()</code> methods.</p>
+</blockquote>
+<p>这是收集已经被gc检测出来无效的对象, 但是还不能被回收的垃圾场.
+<em>那什么时候对象无法被自动回收呢?</em>  -- 就是定义了<code>__del__()</code>析构函数的对象.</p>
+<h4 id="-">一个栗子</h4>
+<p>我们来看下面的例子:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">test_class</span><span class="params">(cls)</span>:</span>
+    <span class="keyword">if</span> <span class="string">'__del__'</span> <span class="keyword">in</span> dir(cls):
+        <span class="keyword">print</span> <span class="string">"%s has __del__ ops"</span> % cls
+    <span class="keyword">else</span>:
+        <span class="keyword">print</span> <span class="string">"%s has NOT __del__ ops"</span> % cls
+    c0 = cls()
+    c1 = cls()
+
+    <span class="comment"># cross reference to each other</span>
+    c0.set(c1)
+    c1.set(c0)
+
+    <span class="comment"># del symbol</span>
+    <span class="keyword">del</span> c0, c1
+
+    <span class="comment"># trigger gc mechanism</span>
+    <span class="keyword">print</span> <span class="string">"######Trigger GC###########"</span>
+    collect_and_show_garbage()
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">A</span><span class="params">(object)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">set</span><span class="params">(self, obj)</span>:</span>
+        self.obj = obj
+
+test_class(A)
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">B</span><span class="params">(A)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">__del__</span><span class="params">(self)</span>:</span>
+        <span class="keyword">print</span> <span class="string">'del %s'</span> % self
+
+test_class(B)
+</pre></td></tr></table></figure>
+
+<p>结果如下所示, 对于<code>class A</code>, 可以被gc回收；但是对于<code>class B</code>就悲剧了, 它定义了<code>__del__</code>, 因此无法被回收, 暂时保存在垃圾堆里<code>gc.garbage</code>. 如果, 没有手动回收的话, 这些熊孩子就会一直呆在这里(memory leak).</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+</pre></td><td class="code"><pre><span class="tag">&lt;<span class="title">class</span> '<span class="attribute">__main__.A</span>'&gt;</span> has NOT __del__ ops
+######Trigger GC###########
+Collecting...
+gc: collectable <span class="tag">&lt;<span class="title">A</span> <span class="attribute">0x7ff2dd2d2f90</span>&gt;</span>
+gc: collectable <span class="tag">&lt;<span class="title">A</span> <span class="attribute">0x7ff2dd2d2fd0</span>&gt;</span>
+gc: collectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x16f11f0</span>&gt;</span>
+gc: collectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x177fea0</span>&gt;</span>
+Unreachable objects: 4
+Garbage:[]
+<span class="tag">&lt;<span class="title">class</span> '<span class="attribute">__main__.B</span>'&gt;</span> has __del__ ops
+######Trigger GC###########
+Collecting...
+gc: uncollectable <span class="tag">&lt;<span class="title">B</span> <span class="attribute">0x7ff2dd2d2fd0</span>&gt;</span>
+gc: uncollectable <span class="tag">&lt;<span class="title">B</span> <span class="attribute">0x7ff2dd2ba050</span>&gt;</span>
+gc: uncollectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x177fea0</span>&gt;</span>
+gc: uncollectable <span class="tag">&lt;<span class="title">dict</span> <span class="attribute">0x17800e0</span>&gt;</span>
+Unreachable objects: 4
+Garbage:[<span class="tag">&lt;<span class="title">__main__.B</span> <span class="attribute">object</span> <span class="attribute">at</span> <span class="attribute">0x7ff2dd2d2fd0</span>&gt;</span>, <span class="tag">&lt;<span class="title">__main__.B</span> <span class="attribute">object</span> <span class="attribute">at</span> <span class="attribute">0x7ff2dd2ba050</span>&gt;</span>]
+</pre></td></tr></table></figure>
+
+<p>因此, <em>对于定义了<code>__del__</code>的类，需要手动回收的介入了．</em></p>
+<h4 id="-weakref-module-">解决办法: <code>weakref module</code></h4>
+<p>python 提供了<code>weakref</code> module 可以处理这种情况. 它提供了一种机制, 通过weakref 引用的对象, 不会影响正常引用计数, gc可以回收weakref对象, 即使weakref还被引用着.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+</pre></td><td class="code"><pre><span class="keyword">import</span> weakref
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(A)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">set</span><span class="params">(self, obj)</span>:</span>
+        self.obj = weakref.ref(obj)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">__del__</span><span class="params">(self)</span>:</span>
+        <span class="keyword">print</span> <span class="string">'del %s'</span> % self
+
+
+test_class(C)
+</pre></td></tr></table></figure>
+
+<p>从结果可以看到, C不用触发gc就被回收了.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>&lt;<span class="class"><span class="keyword">class</span> '<span class="title">__main__</span>.<span class="title">C</span>'&gt; <span class="title">has</span> <span class="title">__del__</span> <span class="title">ops</span></span>
+del &lt;__main__.C <span class="class"><span class="keyword">object</span> <span class="title">at</span> 0<span class="title">x7fae6bee7e10</span>&gt;</span>
+del &lt;__main__.C <span class="class"><span class="keyword">object</span> <span class="title">at</span> 0<span class="title">x7fae6bee2150</span>&gt;</span>
+######Trigger GC###########
+Collecting...
+Unreachable objects: <span class="number">0</span>
+Garbage:[]
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer>
+    
+      
+  
+  <div class="categories">
+    <a href="/categories/Tech/">Tech</a>
+  </div>
+
+      
+  
+  <div class="tags">
+    <a href="/tags/python/">python</a>
+  </div>
+
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+  <div class="ds-thread" data-title="[python] garbage collection 和 weakref">
+  </div>
+</section>
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1035 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>Tech | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content">
+<h2 class="archive-title category">Tech</h2>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-12-17T03:22:25.000Z"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">[Android] The Story of MediaPlayer.setDataSource [Part.1]</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>Android <code>MediaPlayer</code> is a big class for all purpose media type playing, including local file and streaming playing.</p>
+<p>The story start from <code>MediaPlayer.setDataSource</code>.</p>
+<h2 id="-android-media-package"><code>android.media</code> package</h2>
+<p><code>android.media</code> package locates in <code>frameworks/base/media</code>, and it&#39;s Java source is <code>java/android/media</code>.</p>
+<p>This package provide various of interface for media playing/recording/decoding etc, including the <code>MediaPlayer</code> we are going to talk about today.</p>
+<h3 id="-mediaplayer-setdatasource-"><code>MediaPlayer.setDataSource()</code></h3>
+<p>I would not talk much about <code>MediaPlayer</code> constrution, the part we are insterested is what happens after calling <code>setDataSource()</code></p>
+<p>From <a href="http://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank">developer.android</a>, MediaPlayer provide 4 types of method reloading for <code>setDataSource</code>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="literal">void</span> setDataSource(<span class="built_in">String</span> path)
+<span class="literal">void</span> setDataSource(Context context, Uri uri, <span class="built_in">Map</span><span class="subst">&lt;</span><span class="built_in">String</span>, <span class="built_in">String</span><span class="subst">&gt;</span> headers)
+<span class="literal">void</span> setDataSource(Context context, Uri uri)
+<span class="literal">void</span> setDataSource(FileDescriptor fd, long offset, long length)
+<span class="literal">void</span> setDataSource(FileDescriptor fd)
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-12-17T01:49:20.000Z"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">[Android] Bypass SSL cert check when connecting to localhost through HTTPS</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>最近需要用HTTPS连接到localhost做一些测试，但是发现一个SSL证书的问题， 用Android的MediaPlayer播放Https内容的时候总是失败在SSL连接握手阶段，应该是localhost证书非法，验证不了，直接导致MediaPlayer拒绝连接。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="label">javax.net.ssl.SSLProtocolException:</span> SSL handshake terminated: ssl=<span class="number">0xef44d200</span>: Failure <span class="keyword">in</span> SSL library, usually a protocol error
+<span class="label">error:</span><span class="number">14094416</span>:SSL routines:SSL3_READ_BYTES:sslv3 alert certificate unknown (external/openssl/ssl/s3_pkt<span class="preprocessor">.c</span>:<span class="number">1286</span> <span class="number">0xef40c640</span>:<span class="number">0x00000003</span>)
+</pre></td></tr></table></figure>
+
+<h3 id="level-of-security">Level of Security</h3>
+<p>对于连接的安全级别，可以分为下列3个级别：</p>
+<ul>
+<li>Level A – no encryption, no verification</li>
+<li>Level B – encryption, no verification</li>
+<li>Level C – encryption and verification</li>
+</ul>
+<p>Level A 就是相当于http连接，没有任何保护；而Level C就相当于https连接，连接加密且验证连接方。</p>
+<p>而对于媒体播放的需求其实更接近于是Level B，只需要传输数据加密，不让别人知道自己看过什么，而对播放源验证不会有那么严格的要求。</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-04-30T08:33:10.000Z"><a href="/2014/04/30/[linux]-no-protocol-specified/">2014-04-30</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/04/30/[linux]-no-protocol-specified/">[linux] &#39;No protocol specified&#39; error</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>今天突然所有的GUI程序都打不开了, 一直提示有</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$google</span><span class="attribute">-chrome</span><span class="attribute">-stable</span>
+No protocol specified
+
+(google<span class="attribute">-chrome</span><span class="attribute">-stable</span>:<span class="number">13264</span>): Gtk<span class="attribute">-WARNING</span> <span class="subst">**</span>: cannot open display: :<span class="number">0</span>
+</pre></td></tr></table></figure>
+
+<p>错误无非就两种:</p>
+<ul>
+<li><code>No protocol specified</code></li>
+<li><code>cannot open display</code></li>
+</ul>
+<p>奇了怪了, 最近Arch Linux没有升级过, 也没干过神马坏事, 怎么GUI的程序全废了 T.T</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/04/30/[linux]-no-protocol-specified/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-03-02T09:12:33.000Z"><a href="/2014/03/02/a-framework-implement-for-fsm/">2014-03-02</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/03/02/a-framework-implement-for-fsm/">A framework for event driven FSM</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>建立一个<strong>通用</strong>事件驱动的状态机:</p>
+<ol>
+<li>状态机的架构与具体的事件和状态的定义分开.</li>
+<li>状态与事件是低耦合的, 即状态不用关心是什么事件导致状态机进入这个状态.</li>
+<li>每个状态的进入或者退出, 会触发对应的处理函数.</li>
+</ol>
+<h3 id="implement">Implement</h3>
+<p>以下代码为了结构清晰, 会省略一些细节和保护处理, 也有可能不符合C的强类型语法要求, 就权当成伪代码看待吧, 直接copy &amp; paste, 编译器肯定会报错滴 -,-</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/03/02/a-framework-implement-for-fsm/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-12-18T01:35:33.000Z"><a href="/2013/12/18/利用dropbox自动备份网站数据/">2013-12-18</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/12/18/利用dropbox自动备份网站数据/">利用dropbox自动备份网站数据</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>我等小blog网站自然是用不上高大上的备份方案, 但是不备份后果很严重, 万一那天VPS公司跑路了, 或者机器挂了, 东西就全没鸟.</p>
+<p>穷人只用的起免费的Dropbox =.=</p>
+<h4 id="-">安装</h4>
+<p>根据自己安装版本选择32或者64位的, 解压后会有一个.dropbox-dist的隐藏目录.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="comment"># Stable 32-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86"</span>
+ 
+<span class="comment"># Or stable 64-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86_64"</span>
+
+tar -xvf dropbox.tar.gz
+</pre></td></tr></table></figure>
+
+<p>第一次在cmdline运行的时候, 会提示通过一个链接绑定帐号, 照着做就行了.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>~/.dropbox-dist/dropbox
+</pre></td></tr></table></figure>
+
+<p>然后就会在home目录下建立一个Dropbox的目录.</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/12/18/利用dropbox自动备份网站数据/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-12-17T22:58:11.000Z"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">2013-12-18</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">bash: vim 自动补全文件名卡住</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>本来home目录下的.bashrc用一个git维护着. 今天手贱, 在另一个目录下, 以为存在git, 直接git reset, 然后就悲剧了, home下面有些配置直接被干掉了 T.T</p>
+<p>然后就出现各种问题了, 发现bash中输入vim + TAB 之后就卡住了, 只能ctrl + C取消掉, 记得之前搞过, google了一通, 终于把它捞出来了.</p>
+<p>好像是bash-completion的问题 (REF: <a href="https://bbs.archlinux.org/viewtopic.php?id=115604" target="_blank">link</a> )</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>$ pacman -Ss bash-completion
+extra/bash-completion <span class="number">2.1</span>-<span class="number">2</span> [installed]
+</pre></td></tr></table></figure>
+
+<p>运行一下下面这个就搞定了, 目测gvim, emacs也中枪. 可以加在.bashrc里.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>complete <span class="attribute">-f</span> <span class="attribute">-X</span> <span class="string">'*.@(o|so|so.!(conf)|a|rpm|gif|GIF|jp?(e)g|JP?(E)G|mp3|MP3|mp?(e)g|MPG|avi|AVI|asf|ASF|ogg|OGG|class|CLASS)'</span> vi vim gvim rvim view rview rgvim rgview gview emacs xemacs sxemacs kate kwrite
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/12/18/bash:-vim-自动补全文件名卡住/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-11-27T19:47:45.000Z"><a href="/2013/11/28/计算n的阶乘末尾有多少个0/">2013-11-28</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/11/28/计算n的阶乘末尾有多少个0/">计算n的阶乘末尾有多少个0</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <blockquote>
+<p>计算n的阶乘末尾有多少个0，例如5! = 120 末尾有1个0，10!= 3628800末尾有2个0。</p>
+</blockquote>
+<ul>
+<li>对于一个多因式相乘, 末尾有多少个0, 取决于有多少个10相乘.</li>
+<li>10的倍数也可以为结果贡献0, 比如10, 20, 30, 因此可以记为 P = i * 10</li>
+<li>10可以因式分解成5 <em> 2, 于是 P = i </em> 5 * 2</li>
+<li>对于n!, 共有1 <em> 2 </em> ... * n</li>
+</ul>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/11/28/计算n的阶乘末尾有多少个0/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-10-25T00:44:42.000Z"><a href="/2013/10/25/[python]-operator-module-加速简单函数/">2013-10-25</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/10/25/[python]-operator-module-加速简单函数/">operator module 加速简单函数</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
+    <span class="keyword">return</span> x + y
+</pre></td></tr></table></figure>
+
+<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
+<h4 id="-lambda-">与lambda对比测试</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
+<span class="number">0.17214393615722656</span>
+<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
+<span class="number">0.11670303344726562</span>
+</pre></td></tr></table></figure>
+
+<p>单个函数看, 有30%的效率提升.</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/10/25/[python]-operator-module-加速简单函数/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-10-21T23:26:50.000Z"><a href="/2013/10/22/[python]-garbage-collection-和-weakref/">2013-10-22</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/10/22/[python]-garbage-collection-和-weakref/">[python] garbage collection 和 weakref</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>默认情况下, <em>引用计数(ref count)</em> 已经能cover大部分管理, 被引用时候, 计数加一, 去引用时候, 减一;计数为零时候触发回收操作(对象不一定被销毁, python里有很多对象缓冲池).</p>
+<h3 id="problem-1-">Problem 1: 循环引用</h3>
+<p>引用计数有一个致命的缺点, 当出现循环引用的时候, 就无效了.</p>
+<p>为此, python gc collection 为此而生. 监控循环引用.</p>
+<p>首先, 定义一个函数触发gc机制(默认是有一个阀值才会触发, 这里我们可以调用<code>gc.collect()</code>手动触发).</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/10/22/[python]-garbage-collection-和-weakref/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-08-21T00:59:19.000Z"><a href="/2013/08/21/new-style-class-in-Python2/">2013-08-21</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/08/21/new-style-class-in-Python2/">new-style class in Python2</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>Definition of <code>new-style class</code> in python</p>
+<blockquote>
+<p><em><a href="http://docs.python.org/2/glossary.html#term-new-style-class" target="_blank">new-style class</a></em>
+Any class which inherits from object. This includes all built-in types like list and dict. Only new-style classes can use Python’s newer, versatile features like <code>__slots__</code>, descriptors, properties, and <code>__getattribute__()</code>.</p>
+</blockquote>
+<p>简单来说, <em>new-style class</em> 就是继承与<code>object</code>基类的class. 来看一个例子:</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/08/21/new-style-class-in-Python2/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-07-20T07:58:17.000Z"><a href="/2013/07/20/Setup-a-mail-server-to-send-email-only/">2013-07-20</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/07/20/Setup-a-mail-server-to-send-email-only/">Setup a mail server to send email only</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="smtp-server">SMTP server</h3>
+<p>Here I just choose postfix.
+Someone on the Internet said the configuration was very complicated, but after I install postfix, I found the default config file is OK if you just want to send email from you locathost.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install postfix
+</pre></td></tr></table></figure>
+
+<p>At first time when you test sending email, you might encount with such error:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>postdrop: warning: unable <span class="built_in">to</span> look up public/pickup: 
+No such <span class="built_in">file</span> <span class="operator">or</span> <span class="built_in">directory</span>
+</pre></td></tr></table></figure>
+
+<p>That&#39;s because old sendmail daemon still running, just stop it and restart postfix can fix:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>$ <span class="built_in">sudo</span> /etc/init.d/sendmail stop 
+$ <span class="built_in">sudo</span>  mkfifo /var/spool/postfix/public/pickup
+$ <span class="built_in">sudo</span> /etc/init.d/postfix restart
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/07/20/Setup-a-mail-server-to-send-email-only/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-03-23T22:48:01.000Z"><a href="/2013/03/24/Pyhton-Naming-Conventions-/">2013-03-24</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/03/24/Pyhton-Naming-Conventions-/">Pyhton Naming Conventions </a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="package-module">Package &amp; Module</h3>
+<ul>
+<li>名字尽量短, 全部使用<em>小写</em></li>
+<li>Module 在必要时可以使用下划线<code>_</code>, 而package则不建议.</li>
+<li>用C或者C++扩展的Module, 在前面加<code>_</code>(比如:<code>_socket</code>)</li>
+</ul>
+<h3 id="class-exception">Class &amp; Exception</h3>
+<ul>
+<li>统一使用<code>CapWords</code></li>
+<li>只在内部使用的类, 前面加<code>_</code>(比如<code>_CapWords</code>)</li>
+<li>对于Exception, 如果确实是错误的话, 加<code>Error</code>后缀</li>
+</ul>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/03/24/Pyhton-Naming-Conventions-/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-03-04T23:49:33.000Z"><a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/">2013-03-05</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/">通过kernel Makefile 生成 cscope ctags</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>在kernel 中使用cscope 经常会出现很多的数据是没有用，比如一个函数被不同版本的驱动定义了很多次，而这些版本是我们不需要的，查找定义是会出现很多的选项，看得眼睛都花了 T.T </p>
+<p>于是写了一个脚本，通过kernel makefile 来生成这些数据库，这样查找就能很精确，一步到位 ^_^</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-02-27T01:46:10.000Z"><a href="/2013/02/27/Beautiful-soup/">2013-02-27</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/02/27/Beautiful-soup/">Beautiful soup</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="-">对象类型</h3>
+<h4 id="-tag-">标签 <code>tag</code></h4>
+<p><code>tag</code>这个概念应该对应于XML的<em>元素(Element)</em>, 包括起始与结束标签.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>soup = BeautifulSoup(<span class="string">'&lt;b class="boldest"&gt;Extremely bold&lt;/b&gt;'</span>)
+tag = soup.b
+type(tag)
+<span class="comment"># &lt;class 'bs4.element.Tag'&gt;</span>
+</pre></td></tr></table></figure>
+
+<p>结构如下:</p>
+<ul>
+<li>tag<ul>
+<li><code>name</code></li>
+<li><code>attrs</code></li>
+<li><code>string</code></li>
+</ul>
+</li>
+</ul>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/02/27/Beautiful-soup/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-02-27T01:44:39.000Z"><a href="/2013/02/27/Python4Android/">2013-02-27</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/02/27/Python4Android/">Python4Android</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="-android-scripting">安装android-scripting</h3>
+<p><a href="http://code.google.com/p/android-scripting/" target="_blank">SL4A</a>
+下载<code>sl4a_r*.apk</code>和<code>PythonForAndroid_r*.apk</code>并依次安装.</p>
+<h3 id="-adb-">远程控制(adb 调试)</h3>
+<h5 id="-server">运行Server</h5>
+<p>在手机上打开SL4A app, 然后: 菜单--View--Interpreters--menu--StartServer--Private,
+就会建立一个Server &quot;localhost:xxxxx&quot;, 其中xxxxx是本地端口号.</p>
+<h5 id="adb-">adb 端口映射</h5>
+<p>在本机上运行, 将手机的xxxxx端口映射到本地主机的9999端口. 并导出<code>AP_PORT</code>环境变量, 之后android.py会用到.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>adb forward tcp:<span class="number">9999</span> tcp:xxxxx
+<span class="keyword">export</span> AP_PORT=<span class="number">9999</span>
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/02/27/Python4Android/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-02-17T19:09:52.000Z"><a href="/2013/02/18/部署Django到Lighttpd/">2013-02-18</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/02/18/部署Django到Lighttpd/">部署Django到Lighttpd</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="django-fastcgi">Django &amp; FastCGI</h3>
+<h4 id="-">软件包依赖</h4>
+<p>在Django上使用FastCGI需要<code>flup</code>包:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>pip install flup
+</pre></td></tr></table></figure>
+
+<h4 id="-django-server">运行Django server</h4>
+<p>Django 内置有<code>runfcgi</code>命令, 建立一个脚本, 运行Django:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="code"><pre><span class="shebang">#!/bin/sh</span>
+app_path=<span class="string">'/path/to/django-app/'</span>
+p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
+<span class="built_in">cd</span> <span class="string">"<span class="variable">$app_path</span>"</span>
+<span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$p</span> ]; <span class="keyword">then</span>
+    kill $(cat -- <span class="variable">$p</span>)
+    rm <span class="operator">-f</span> -- <span class="variable">$p</span>
+<span class="keyword">fi</span>
+
+<span class="keyword">exec</span> /usr/bin/env \
+    PYTHONPATH=<span class="string">"<span class="variable">$app_path</span>/.."</span> python \
+    manage.py runfcgi \
+    method=threaded \
+    host=<span class="number">127.0</span>.<span class="number">0.1</span> \
+    port=<span class="number">3033</span> \
+    pidfile=<span class="string">"<span class="variable">$p</span>"</span>
+</pre></td></tr></table></figure>
+
+<p>这里使用的TCP方式, 使用127.0.0.1:3033 地址.</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/02/18/部署Django到Lighttpd/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2013-02-02T18:08:33.000Z"><a href="/2013/02/03/ARCH-Linux-安装/">2013-02-03</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/02/03/ARCH-Linux-安装/">ARCH Linux 安装</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h4 id="-iso-">准备ISO 文件引导</h4>
+<h5 id="-iso-">下载ISO文件</h5>
+<p>我下的是201108 i686版本</p>
+<h5 id="-u-">用U盘启动。</h5>
+<p>因为我用的是multi-boot，不能直接dd，先做一个grub启动菜单</p>
+<pre><code>menuentry &quot;Arch Linux i686&quot; {
+    search --set -f &quot;/archlinux_i686.iso&quot;
+    loopback loop &quot;/archlinux_i686.iso&quot;
+    linux (loop)/arch/boot/i686/vmlinuz archisolabel=archiso
+    initrd (loop)/arch/boot/i686/archiso.img
+}
+</code></pre><blockquote>
+<p> 注意，这里加了 <em>archisolable</em> 选项，会在之后系统安装的时候用到</p>
+</blockquote>
+<p>然后,从U盘启动.系统会提示找不到boot device，这是因为从U盘启动的时候找不到arch iso 安装盘。这时会进入一个shell，可以在这里将ISO 挂载上：</p>
+<pre><code>mkdir /u_disk # create a directory for later U-disk mount
+mount -t vfat /dev/sdb2 /u_disk #check your U-disk, I install multi-boot in the second partition.
+# assigned the ISO to the system
+modprobe loop
+losetup /dev/loop0 /u_disk/archlinux_i686.iso
+ln -s /dev/loop0 /dev/disk/by-label/archiso
+exit
+</code></pre><p>从这之后就进入正常的安装过程了 ^_^</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/02/03/ARCH-Linux-安装/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+
+  <nav id="pagination">
+  
+  
+  <div class="clearfix"></div>
+</nav>
+
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

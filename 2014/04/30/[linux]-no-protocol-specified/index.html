@@ -1,0 +1,338 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>[linux] &#39;No protocol specified&#39; error | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta property="og:title" content="[linux] &#39;No protocol specified&#39; error"/>
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content"><article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-04-30T08:33:10.000Z"><a href="/2014/04/30/[linux]-no-protocol-specified/">2014-04-30</a></time>
+    
+    
+  
+    <h1 class="title">[linux] &#39;No protocol specified&#39; error</h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>今天突然所有的GUI程序都打不开了, 一直提示有</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$google</span><span class="attribute">-chrome</span><span class="attribute">-stable</span>
+No protocol specified
+
+(google<span class="attribute">-chrome</span><span class="attribute">-stable</span>:<span class="number">13264</span>): Gtk<span class="attribute">-WARNING</span> <span class="subst">**</span>: cannot open display: :<span class="number">0</span>
+</pre></td></tr></table></figure>
+
+<p>错误无非就两种:</p>
+<ul>
+<li><code>No protocol specified</code></li>
+<li><code>cannot open display</code></li>
+</ul>
+<p>奇了怪了, 最近Arch Linux没有升级过, 也没干过神马坏事, 怎么GUI的程序全废了 T.T</p>
+<a id="more"></a>
+
+<p>立马Google之, 好像是<a href="https://bbs.archlinux.org/viewtopic.php?id=122848" target="_blank">跟Xauthority有关系</a>. 但是AUTHORITY的env我早就有了, 不是缺失环境变量的缘故.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="symbol">oneyoung:</span>/home/oneyoung<span class="variable">$env</span> | grep <span class="string">"xauth"</span> -i
+<span class="constant">XAUTHORITY</span>=<span class="regexp">/home/oneyoung</span><span class="regexp">//</span>.<span class="constant">Xauthority</span>
+</pre></td></tr></table></figure>
+
+<p>同一个帖子, 上面有一个老外有说, 出现这种问题通常和权限管理有关系:</p>
+<blockquote>
+<p>Can&#39;t open display :0
+This usually indicates a permission problem;</p>
+</blockquote>
+<p>Xauthority 是由xauth管理的, 咱们来看看xauth是神马东东:</p>
+<blockquote>
+<p><strong>xauth</strong>
+The xauth program is used to edit and display the authorization information used in connecting to the X server. This program is usually used to extract authorization records from one machine and merge them in on another (as is the case when using remote logins or granting access to other users).</p>
+</blockquote>
+<p>简单来说就是对远程client连接X server的一个权限管理.</p>
+<p><code>xauth list</code> 可以列出当前授权的主机列表:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$xauth</span> list
+localhost/unix:<span class="number">0</span>  MIT-MAGIC-COOKIE-<span class="number">1</span>  xxxxxxxxxxxxxxxx85f2192bf00243e4
+Device-<span class="number">04027</span>B/unix:<span class="number">0</span>  MIT-MAGIC-COOKIE-<span class="number">1</span>  xxxxxxxxxxxxxxxx85f2192bf00243e4
+</pre></td></tr></table></figure>
+
+<p>xauth 列出来的列表, cookie是绑定hostname的, 会不会就是这个问题?</p>
+<p>好吧, 咱来瞅瞅:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre>oneyoung:/home/oneyoung<span class="variable">$hostname</span>
+Device-<span class="number">040761</span>
+
+<span class="comment"># or another way</span>
+oneyoung:~<span class="variable">$cat</span> /proc/sys/kernel/hostname 
+Device-<span class="number">040761</span>
+</pre></td></tr></table></figure>
+
+<p>WTF, hostname 不知怎么被谁给改了, 导致xauth拒绝连接display.</p>
+<p>来来来, 到大家喜闻乐见的solution时间了. 不喜欢看废话的, 直接往这边瞧.</p>
+<p>无非就是<em>两种方法</em>:</p>
+<ul>
+<li><p>将新的hostname 加入auth list</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="comment"># 最后一个参数就是 xauth list 列出的hash value</span>
+xauth add <span class="variable">$DISPLAY</span> MIT-MAGIC-COOKIE-<span class="number">1</span>  xxxxxxxxxxxxxxxx85f2192bf00243e4
+</pre></td></tr></table></figure>
+</li>
+<li><p>把hostname改回去</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>hostnamectl <span class="keyword">set</span>-hostname ORIGINAL_HOSTNAME
+</pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h4 id="-hostname">关于hostname</h4>
+<p>Linux操作系统的hostname是一个kernel变量，可以通过hostname命令来查看本机的hostname。也可以直接cat /proc/sys/kernel/hostname查看。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>hostname
+<span class="comment"># or this way</span>
+cat /proc/sys/kernel/hostname
+</pre></td></tr></table></figure>
+
+<p>上面两种输出结果相同。</p>
+<blockquote>
+<p>Note: 此hostname和/etc/hosts里面的hostname不一样.</p>
+</blockquote>
+<h5 id="-hostname">临时更改hostname</h5>
+<p>修改运行时Linux系统的hostname，即不需要重启系统. hostname命令可以设置系统的hostname</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="comment">#hostname newname</span>
+</pre></td></tr></table></figure>
+
+<p>newname即要设置的新的hostname，运行后立即生效，但是在系统重启后会丢失所做的修改，如果要永久更改系统的hostname，就要修改相关的设置文件。</p>
+<h5 id="-hostname">永久更改hostname</h5>
+<p>hostnamectl 提供了一个命令接口, 将新的hostname写入到<code>/etc/hostname</code>配置文件.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre>hostnamectl <span class="keyword">set</span>-hostname newhostname
+<span class="comment"># newhostname is the hostname you want to set</span>
+</pre></td></tr></table></figure>
+
+<p>Ref:</p>
+<ol>
+<li><a href="https://bbs.archlinux.org/viewtopic.php?id=122848" target="_blank">https://bbs.archlinux.org/viewtopic.php?id=122848</a></li>
+<li><a href="http://liuleijsjx.iteye.com/blog/427900" target="_blank">http://liuleijsjx.iteye.com/blog/427900</a></li>
+<li><a href="https://wiki.archlinux.org/index.php/Network_configuration#Set_the_hostname" target="_blank">https://wiki.archlinux.org/index.php/Network_configuration#Set_the_hostname</a></li>
+</ol>
+
+    
+  </div>
+  <footer>
+    
+      
+  
+  <div class="categories">
+    <a href="/categories/Tech/">Tech</a>
+  </div>
+
+      
+  
+  <div class="tags">
+    <a href="/tags/archlinux/">archlinux</a>
+  </div>
+
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+  <div class="ds-thread" data-title="[linux] &#39;No protocol specified&#39; error">
+  </div>
+</section>
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,793 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>[Android] The Story of MediaPlayer.setDataSource [Part.1] | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta property="og:title" content="[Android] The Story of MediaPlayer.setDataSource [Part.1]"/>
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content"><article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2014-12-17T03:22:25.000Z"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title">[Android] The Story of MediaPlayer.setDataSource [Part.1]</h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>Android <code>MediaPlayer</code> is a big class for all purpose media type playing, including local file and streaming playing.</p>
+<p>The story start from <code>MediaPlayer.setDataSource</code>.</p>
+<h2 id="-android-media-package"><code>android.media</code> package</h2>
+<p><code>android.media</code> package locates in <code>frameworks/base/media</code>, and it&#39;s Java source is <code>java/android/media</code>.</p>
+<p>This package provide various of interface for media playing/recording/decoding etc, including the <code>MediaPlayer</code> we are going to talk about today.</p>
+<h3 id="-mediaplayer-setdatasource-"><code>MediaPlayer.setDataSource()</code></h3>
+<p>I would not talk much about <code>MediaPlayer</code> constrution, the part we are insterested is what happens after calling <code>setDataSource()</code></p>
+<p>From <a href="http://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank">developer.android</a>, MediaPlayer provide 4 types of method reloading for <code>setDataSource</code>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="literal">void</span> setDataSource(<span class="built_in">String</span> path)
+<span class="literal">void</span> setDataSource(Context context, Uri uri, <span class="built_in">Map</span><span class="subst">&lt;</span><span class="built_in">String</span>, <span class="built_in">String</span><span class="subst">&gt;</span> headers)
+<span class="literal">void</span> setDataSource(Context context, Uri uri)
+<span class="literal">void</span> setDataSource(FileDescriptor fd, long offset, long length)
+<span class="literal">void</span> setDataSource(FileDescriptor fd)
+</pre></td></tr></table></figure>
+
+<a id="more"></a>
+
+<p>Although <code>setDataSource</code> accept various of source, including android content URI, asset fd, local file path and http/rtsp URL, it can be categoried into two type of source:</p>
+<ul>
+<li>web source: http/https/rtsp URL<ul>
+<li>native API: <code>private native void nativeSetDataSource(...)</code></li>
+</ul>
+</li>
+<li>file source: local file open as fd (Android content URI, asset fd, local file path) <ul>
+<li>native API: <code>private native void _setDataSource(...)</code></li>
+</ul>
+</li>
+</ul>
+<h4 id="dig-in">Dig in</h4>
+<p>Let&#39;s take the most general API <code>void    setDataSource(String path)</code> for example:</p>
+<p>This API will eventually calling the below code snap, note that <em>line 5</em> is the key point to branch.</p>
+<ul>
+<li>an local file path will has a prefix <code>file:///</code> in URI</li>
+<li>whereas a streaming http/https/rtsp not.</li>
+</ul>
+<p>we can see <em>line 9</em> that if source is a remote source, it will invoke <code>nativeSetDataSource</code>.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+</pre></td><td class="code"><pre>    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title">setDataSource</span>(String path, String[] keys, String[] values)
+            <span class="keyword">throws</span> IOException, IllegalArgumentException, SecurityException, IllegalStateException {
+        <span class="keyword">final</span> Uri uri = Uri.parse(path);
+        <span class="keyword">final</span> String scheme = uri.getScheme();
+        <span class="keyword">if</span> (<span class="string">"file"</span>.equals(scheme)) {
+            path = uri.getPath();
+        } <span class="keyword">else</span> <span class="keyword">if</span> (scheme != <span class="keyword">null</span>) {
+            <span class="comment">// handle non-file sources</span>
+            nativeSetDataSource(
+                MediaHTTPService.createHttpServiceBinderIfNecessary(path),
+                path,
+                keys,
+                values);
+            <span class="keyword">return</span>;
+        }
+
+        <span class="keyword">final</span> File file = <span class="keyword">new</span> File(path);
+        <span class="keyword">if</span> (file.exists()) {
+            FileInputStream is = <span class="keyword">new</span> FileInputStream(file);
+            FileDescriptor fd = is.getFD();
+            setDataSource(fd);
+            is.close();
+        } <span class="keyword">else</span> {
+            <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"setDataSource failed."</span>);
+        }
+    }
+</pre></td></tr></table></figure>
+
+<p><em>line 21</em> is the route for local file path, which will call native method &#39;_setDataSource` in the end.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setDataSource</span>(FileDescriptor fd)
+            <span class="keyword">throws</span> IOException, IllegalArgumentException, IllegalStateException {
+        <span class="comment">// intentionally less than LONG_MAX</span>
+        setDataSource(fd, <span class="number">0</span>, <span class="number">0x7ffffffffffffff</span>L);
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setDataSource</span>(FileDescriptor fd, <span class="keyword">long</span> offset, <span class="keyword">long</span> length)
+            <span class="keyword">throws</span> IOException, IllegalArgumentException, IllegalStateException {
+        _setDataSource(fd, offset, length);
+    }
+</pre></td></tr></table></figure>
+
+<h3 id="jni-library">JNI library</h3>
+<p>Obviously, Java code can&#39;t cover all the things to play media, actually, it heavily depends on C/C++ library.</p>
+<p>Here JNI act as a bridge for Android Java code to access C/C++ library. The corresponding JNI path for <code>MediaPlayer</code> is <code>jni/android_media_MediaPlayer.cpp</code> under <code>frameworks/base/media</code>.</p>
+<p>Let&#39;s see the what was going on in the two native API methoded above.</p>
+<h4 id="native-api-declare-and-mapping">native API declare and mapping</h4>
+<ul>
+<li><code>nativeSetDataSource</code> ==&gt; <code>android_media_MediaPlayer_setDataSourceAndHeaders</code></li>
+<li><code>_setDataSource</code> ==&gt; <code>android_media_MediaPlayer_setDataSourceFD</code></li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre><span class="keyword">static</span> JNINativeMethod gMethods[] = {
+    {
+        <span class="string">"nativeSetDataSource"</span>,
+        <span class="string">"(Landroid/os/IBinder;Ljava/lang/String;[Ljava/lang/String;"</span>
+        <span class="string">"[Ljava/lang/String;)V"</span>,
+        (<span class="keyword">void</span> *)android_media_MediaPlayer_setDataSourceAndHeaders
+    },
+
+    {<span class="string">"_setDataSource"</span>,       <span class="string">"(Ljava/io/FileDescriptor;JJ)V"</span>,    (<span class="keyword">void</span> *)android_media_MediaPlayer_setDataSourceFD},
+</pre></td></tr></table></figure>
+
+<h4 id="jni-is-just-a-bridge">JNI is just a bridge</h4>
+<p>What have been done in JNI?</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+</pre></td><td class="code"><pre><span class="keyword">static</span> <span class="keyword">void</span>
+android_media_MediaPlayer_setDataSourceAndHeaders(
+        JNIEnv *env, jobject thiz, jobject httpServiceBinderObj, jstring path,
+        jobjectArray keys, jobjectArray values) {
+
+    sp&lt;MediaPlayer&gt; mp = getMediaPlayer(env, thiz);
+    ...
+    sp&lt;IMediaHTTPService&gt; httpService;
+    <span class="keyword">if</span> (httpServiceBinderObj != NULL) {
+        sp&lt;IBinder&gt; binder = ibinderForJavaObject(env, httpServiceBinderObj);
+        httpService = interface_cast&lt;IMediaHTTPService&gt;(binder);
+    }
+
+    status_t opStatus =
+        mp-&gt;setDataSource(
+                httpService,
+                pathStr,
+                headersVector.size() &gt; <span class="number">0</span>? &headersVector : NULL);
+    ...
+}
+</pre></td></tr></table></figure>
+
+<p>There is nothing much done in JNI code, most of work is type convert, and adopt <code>libmedia</code>.</p>
+<h3 id="-libmedia-"><code>libmedia</code></h3>
+<blockquote>
+<p>path: <code>frameworks/av/media/libmedia/</code></p>
+</blockquote>
+<p>Now we eventually come to C++ world.</p>
+<h4 id="what-s-going-on-in-setdatasource-again">what&#39;s going on in <code>setDataSource</code> again</h4>
+<blockquote>
+<p>file: <code>mediaplayer.cpp</code></p>
+</blockquote>
+<p>Let&#39;s take http source for example:</p>
+<p>Note <em>line 8</em>, it will try to get <code>MediaPlayerService</code>, but wait, WTF, it still contine to call another service, endless call chain! </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre>status_t MediaPlayer::setDataSource(
+        <span class="keyword">const</span> sp&lt;IMediaHTTPService&gt; &httpService,
+        <span class="keyword">const</span> <span class="keyword">char</span> *url, <span class="keyword">const</span> KeyedVector&lt;String8, String8&gt; *headers)
+{
+                    ALOGV(<span class="string">"setDataSource(%s)"</span>, url);
+        status_t err = BAD_VALUE;
+        <span class="keyword">if</span> (url != NULL) {
+            <span class="keyword">const</span> sp&lt;IMediaPlayerService&gt;& service(getMediaPlayerService());
+        <span class="keyword">if</span> (service != <span class="number">0</span>) {
+            sp&lt;IMediaPlayer&gt; player(service-&gt;create(<span class="keyword">this</span>, mAudioSessionId));
+            <span class="keyword">if</span> ((NO_ERROR != doSetRetransmitEndpoint(player)) ||
+                (NO_ERROR != player-&gt;setDataSource(httpService, url, headers))) {
+                player.clear();
+            }
+            err = attachNewPlayer(player);
+        }
+    }
+    <span class="keyword">return</span> err;
+}
+</pre></td></tr></table></figure>
+
+<h3 id="-mediaserver-"><code>mediaserver</code></h3>
+<blockquote>
+<p>path: <code>frameworks/av/media/mediaserver</code></p>
+</blockquote>
+<p>In previous section, we say that something called <code>MediaPlayerService</code> is invoked. This is done by this daemon.</p>
+<p>The task done here is quite simple, by including libraries, it acts as a center to provide services for all kinds of media functions. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+</pre></td><td class="code"><pre><span class="keyword">int</span> main(<span class="keyword">int</span> argc __unused, <span class="keyword">char</span>** argv)
+{
+    ...
+        sp&lt;ProcessState&gt; proc(ProcessState::self());
+        sp&lt;IServiceManager&gt; sm = defaultServiceManager();
+        ALOGI(<span class="string">"ServiceManager: %p"</span>, sm.get());
+        AudioFlinger::instantiate();
+        MediaPlayerService::instantiate();
+        CameraService::instantiate();
+        AudioPolicyService::instantiate();
+        SoundTriggerHwService::instantiate();
+        registerExtensions();
+        ProcessState::self()-&gt;startThreadPool();
+        IPCThreadState::self()-&gt;joinThreadPool();
+    ...
+</pre></td></tr></table></figure>
+
+<p>Note in <em>line 8</em>, <code>mediaserver</code> register a service called <code>MediaPlayerService</code>. Yep! That&#39;s all we want to find.</p>
+<h3 id="-mediaplayerservice-"><code>MediaPlayerService</code></h3>
+<blockquote>
+<p>path: <code>frameworks/av/media/libmediaplayerservice/MediaPlayerService.cpp</code></p>
+</blockquote>
+<p>Yes, the story is not reach the end. Now we come to another library called <code>libmediaplayerservice</code>. It has an interface called <code>MediaPlayerService</code>.</p>
+<p>Note that in <code>frameworks/av/media/libmedia/mediaplayer.cpp</code> <code>setDataSource</code> has the following calls. Let&#39;s have a look at it.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre>            <span class="comment">/* get MediaPlayerService */</span>
+            <span class="keyword">const</span> sp&lt;IMediaPlayerService&gt;& service(getMediaPlayerService());
+            <span class="comment">/* create a player by service-&gt;create */</span>
+            sp&lt;IMediaPlayer&gt; player(service-&gt;create(<span class="keyword">this</span>, mAudioSessionId));
+            <span class="comment">/* again call setDataSource */</span>
+             (NO_ERROR != player-&gt;setDataSource(httpService, url, headers))) {
+</pre></td></tr></table></figure>
+
+<h5 id="-service-create-"><code>service-&gt;create</code></h5>
+<p>Nothing special here, it create a class <code>Client</code>, and return it.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+</pre></td><td class="code"><pre>sp&lt;IMediaPlayer&gt; MediaPlayerService::create(<span class="keyword">const</span> sp&lt;IMediaPlayerClient&gt;& client,
+        <span class="keyword">int</span> audioSessionId)
+{
+    ...
+    sp&lt;Client&gt; c = <span class="keyword">new</span> Client(
+            <span class="keyword">this</span>, pid, connId, client, audioSessionId,
+            IPCThreadState::self()-&gt;getCallingUid());
+    ...
+    wp&lt;Client&gt; w = c;
+    {
+        Mutex::Autolock lock(mLock);
+        mClients.add(w);
+    }
+    <span class="keyword">return</span> c;
+}
+</pre></td></tr></table></figure>
+
+<h5 id="-player-setdatasource-"><code>player-&gt;setDataSource</code></h5>
+<p>From previous section, we can see that <code>player</code> is a instance of <code>Client</code>. Let&#39;s have a glance at <code>setDataSource</code></p>
+<p>Since we want to investigate remote source like HTTP, we quickly jump to <em>line 17</em>.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+</pre></td><td class="code"><pre>status_t MediaPlayerService::Client::setDataSource(
+        <span class="keyword">const</span> sp&lt;IMediaHTTPService&gt; &httpService,
+        <span class="keyword">const</span> <span class="keyword">char</span> *url,
+        <span class="keyword">const</span> KeyedVector&lt;String8, String8&gt; *headers)
+{
+    ...
+    <span class="keyword">if</span> (<span class="built_in">strncmp</span>(url, <span class="string">"content://"</span>, <span class="number">10</span>) == <span class="number">0</span>) {
+        <span class="comment">// get a filedescriptor for the content Uri and</span>
+        <span class="comment">// pass it to the setDataSource(fd) method</span>
+
+        String16 url16(url);
+        <span class="keyword">int</span> fd = android::openContentProviderFile(url16);
+        ...
+        setDataSource(fd, <span class="number">0</span>, <span class="number">0x7fffffffff</span>LL); <span class="comment">// this sets mStatus</span>
+        ...
+    } <span class="keyword">else</span> {
+        player_type playerType = MediaPlayerFactory::getPlayerType(<span class="keyword">this</span>, url);
+        sp&lt;MediaPlayerBase&gt; p = setDataSource_pre(playerType);
+        <span class="keyword">if</span> (p == NULL) {
+            <span class="keyword">return</span> NO_INIT;
+        }
+
+        setDataSource_post(p, p-&gt;setDataSource(httpService, url, headers));
+        <span class="keyword">return</span> mStatus;
+    }
+}
+</pre></td></tr></table></figure>
+
+<p>Here is a interesting part <code>MediaPlayerFactory::getPlayerType(this, url);</code></p>
+<h4 id="-mediaplayerfactory-"><code>MediaPlayerFactory</code></h4>
+<blockquote>
+<p>file: <code>MediaPlayerFactory.cpp</code></p>
+</blockquote>
+<p>This is a &quot;Factory&quot; to provide various kind of players. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="code"><pre><span class="keyword">void</span> MediaPlayerFactory::registerBuiltinFactories() {
+    ....
+    registerFactory_l(<span class="keyword">new</span> StagefrightPlayerFactory(), STAGEFRIGHT_PLAYER);
+    registerFactory_l(<span class="keyword">new</span> NuPlayerFactory(), NU_PLAYER);
+    registerFactory_l(<span class="keyword">new</span> SonivoxPlayerFactory(), SONIVOX_PLAYER);
+    registerFactory_l(<span class="keyword">new</span> TestPlayerFactory(), TEST_PLAYER);
+    ...
+}
+</pre></td></tr></table></figure>
+
+<p>we can infer that it provide 4 kinds of players:</p>
+<ul>
+<li><code>StagefrightPlayer</code>: <ul>
+<li>source: <code>frameworks/av/media/libstagefright</code></li>
+<li>a generic player for local file playing.</li>
+</ul>
+</li>
+<li><code>NuPlayer</code><ul>
+<li>source: <code>frameworks/av/media/libmediaplayerservice/nuplayer</code></li>
+<li>It&#39;s a built-in player, i.e. static link into <code>libmediaplayerservice</code></li>
+</ul>
+</li>
+<li><code>SonivoxPlayer</code><ul>
+<li>source: <code>external/sonivox/</code></li>
+<li>For MIDI playback.</li>
+</ul>
+</li>
+<li><code>TestPlayer</code>: just ignore it.</li>
+</ul>
+<h5 id="how-the-factory-detemines-which-player-to-use-">How the factory detemines which player to use?</h5>
+<p>In <code>setDataSource</code> we call <code>MediaPlayerFactory::getPlayerType(this, url);</code>, so what happens here?</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+</pre></td><td class="code"><pre>player_type MediaPlayerFactory::getPlayerType(<span class="keyword">const</span> sp&lt;IMediaPlayer&gt;& client,
+                                              <span class="keyword">const</span> <span class="keyword">char</span>* url) {
+    GET_PLAYER_TYPE_IMPL(client, url);
+}
+
+<span class="preprocessor">#define GET_PLAYER_TYPE_IMPL(a...)                      \</span>
+    Mutex::Autolock lock_(&sLock);                      \
+                                                        \
+    player_type ret = STAGEFRIGHT_PLAYER;               \
+    <span class="keyword">float</span> bestScore = <span class="number">0.0</span>;                              \
+                                                        \
+    <span class="keyword">for</span> (size_t i = <span class="number">0</span>; i &lt; sFactoryMap.size(); ++i) {   \
+                                                        \
+        IFactory* v = sFactoryMap.valueAt(i);           \
+        <span class="keyword">float</span> thisScore;                                \
+        CHECK(v != NULL);                               \
+        thisScore = v-&gt;scoreFactory(a, bestScore);      \
+        <span class="keyword">if</span> (thisScore &gt; bestScore) {                    \
+            ret = sFactoryMap.keyAt(i);                 \
+            bestScore = thisScore;                      \
+        }                                               \
+    }                                                   \
+                                                        \
+    <span class="keyword">if</span> (<span class="number">0.0</span> == bestScore) {                             \
+        ret = getDefaultPlayerType();                   \
+    }                                                   \
+                                                        \
+    <span class="keyword">return</span> ret;
+</pre></td></tr></table></figure>
+
+<p>Emm, an annoying Marco, but <em>line 17</em> has an interesting method call <code>scoreFactory</code>.</p>
+<p>This is a scoring system, it will return the player which score highest among all available media players.</p>
+<h5 id="-scorefactory-in-nuplayer"><code>scoreFactory</code> in NuPlayer</h5>
+<p>But what&#39;s happens in <code>scoreFactory</code>, take a look at NuPlayer:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+</pre></td><td class="code"><pre><span class="keyword">class</span> NuPlayerFactory : <span class="keyword">public</span> MediaPlayerFactory::IFactory {
+  <span class="keyword">public</span>:
+    <span class="keyword">virtual</span> <span class="keyword">float</span> scoreFactory(<span class="keyword">const</span> sp&lt;IMediaPlayer&gt;& <span class="comment">/*client*/</span>,
+                               <span class="keyword">const</span> <span class="keyword">char</span>* url,
+                               <span class="keyword">float</span> curScore) {
+        <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">float</span> kOurScore = <span class="number">0.8</span>;
+
+        <span class="keyword">if</span> (kOurScore &lt;= curScore)
+            <span class="keyword">return</span> <span class="number">0.0</span>;
+
+        <span class="keyword">if</span> (!strncasecmp(<span class="string">"http://"</span>, url, <span class="number">7</span>)
+                || !strncasecmp(<span class="string">"https://"</span>, url, <span class="number">8</span>)
+                || !strncasecmp(<span class="string">"file://"</span>, url, <span class="number">7</span>)) {
+            size_t len = <span class="built_in">strlen</span>(url);
+            <span class="keyword">if</span> (len &gt;= <span class="number">5</span> && !strcasecmp(<span class="string">".m3u8"</span>, &url[len - <span class="number">5</span>])) {
+                <span class="keyword">return</span> kOurScore;
+            }
+
+            <span class="keyword">if</span> (<span class="built_in">strstr</span>(url,<span class="string">"m3u8"</span>)) {
+                <span class="keyword">return</span> kOurScore;
+            }
+
+            <span class="keyword">if</span> ((len &gt;= <span class="number">4</span> && !strcasecmp(<span class="string">".sdp"</span>, &url[len - <span class="number">4</span>])) || <span class="built_in">strstr</span>(url, <span class="string">".sdp?"</span>)) {
+                <span class="keyword">return</span> kOurScore;
+            }
+        }
+
+        <span class="keyword">if</span> (!strncasecmp(<span class="string">"rtsp://"</span>, url, <span class="number">7</span>)) {
+            <span class="keyword">return</span> kOurScore;
+        }
+
+        <span class="keyword">return</span> <span class="number">0.0</span>;
+    }
+</pre></td></tr></table></figure>
+
+<p>from <em>line 11~30</em>, it tells us that NuPlayer is good at playing streaming media (&quot;.m3u8&quot;, i.e. http/https live streaming, &quot;rtsp&quot; and &quot;sdp&quot;).</p>
+<p>So if we passing a streaming media URL to <code>MediaPlayer</code>, in most case, NuPlayer will server us.</p>
+
+    
+  </div>
+  <footer>
+    
+      
+  
+  <div class="categories">
+    <a href="/categories/Tech/">Tech</a>
+  </div>
+
+      
+  
+  <div class="tags">
+    <a href="/tags/android/">android</a>, <a href="/tags/java/">java</a>, <a href="/tags/multimedia/">multimedia</a>
+  </div>
+
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+  <div class="ds-thread" data-title="[Android] The Story of MediaPlayer.setDataSource [Part.1]">
+  </div>
+</section>
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>17</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>3</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>2</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>1</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 14.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 12.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 10.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2014 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>
