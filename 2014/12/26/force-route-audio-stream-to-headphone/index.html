@@ -81,6 +81,8 @@
 This method was deprecated in API level 4.
 Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() methods instead.</p>
 </blockquote>
+<a id="more"></a>
+
 <h4 id="way-out-through-hacking">Way out through hacking</h4>
 <p>But if we looks at the source code about andorid.media system, it still opens a door to archive this, needs some hacking.</p>
 <h5 id="the-idea">The idea</h5>
@@ -286,7 +288,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
         }
     }
 
-    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title">forceRouteHeadset</span>(<span class="keyword">boolean</span> enable) {
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">forceRouteHeadset</span>(<span class="keyword">boolean</span> enable) {
         <span class="keyword">if</span> (enable) {
             Log.i(TAG, <span class="string">"force route to Headset"</span>);
             setDeviceConnectionState(DEVICE_IN_WIRED_HEADSET, DEVICE_STATE_AVAILABLE, <span class="string">""</span>);
@@ -303,12 +305,9 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
 
 <h3 id="reference">Reference</h3>
 <ol>
-<li><p><a href="http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged" target="_blank">http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged</a></p>
-</li>
-<li><p><a href="http://forum.xda-developers.com/showthread.php?t=1472440" target="_blank">http://forum.xda-developers.com/showthread.php?t=1472440</a></p>
-</li>
-<li><p><a href="https://code.google.com/p/toggleheadset2/" target="_blank">https://code.google.com/p/toggleheadset2/</a></p>
-</li>
+<li><a href="http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged" target="_blank">http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged</a></li>
+<li><a href="http://forum.xda-developers.com/showthread.php?t=1472440" target="_blank">http://forum.xda-developers.com/showthread.php?t=1472440</a></li>
+<li><a href="https://code.google.com/p/toggleheadset2/" target="_blank">https://code.google.com/p/toggleheadset2/</a></li>
 </ol>
 
     

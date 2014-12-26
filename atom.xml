@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2014-12-26T07:23:04.277Z</updated>
+  <updated>2014-12-26T07:26:08.649Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -19,7 +19,7 @@
     <link href="http://oneyoung.im/2014/12/26/force-route-audio-stream-to-headphone/"/>
     <id>http://oneyoung.im/2014/12/26/force-route-audio-stream-to-headphone/</id>
     <published>2014-12-26T07:18:29.000Z</published>
-    <updated>2014-12-26T07:22:53.000Z</updated>
+    <updated>2014-12-26T07:26:05.000Z</updated>
     <content type="html"><![CDATA[<p>I want to force route audio stream to headphone for some tests, no matter headset is on or off.</p>
 <h4 id="api-has-been-deprecrated">API has been deprecrated</h4>
 <p>Andoird&#39;s <code>AudioManager</code> has such API before, called <a href="http://developer.android.com/reference/android/media/AudioManager.html" target="_blank">setRouting</a> , but it has deprecated for quite a long time. Currently, the available APIs can&#39;t meet my demands.</p>
@@ -28,6 +28,8 @@
 This method was deprecated in API level 4.
 Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() methods instead.</p>
 </blockquote>
+<a id="more"></a>
+
 <h4 id="way-out-through-hacking">Way out through hacking</h4>
 <p>But if we looks at the source code about andorid.media system, it still opens a door to archive this, needs some hacking.</p>
 <h5 id="the-idea">The idea</h5>
@@ -233,7 +235,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
         }
     }
 
-    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title">forceRouteHeadset</span>(<span class="keyword">boolean</span> enable) {
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">forceRouteHeadset</span>(<span class="keyword">boolean</span> enable) {
         <span class="keyword">if</span> (enable) {
             Log.i(TAG, <span class="string">"force route to Headset"</span>);
             setDeviceConnectionState(DEVICE_IN_WIRED_HEADSET, DEVICE_STATE_AVAILABLE, <span class="string">""</span>);
@@ -250,15 +252,20 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
 
 <h3 id="reference">Reference</h3>
 <ol>
-<li><p><a href="http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged" target="_blank">http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged</a></p>
-</li>
-<li><p><a href="http://forum.xda-developers.com/showthread.php?t=1472440" target="_blank">http://forum.xda-developers.com/showthread.php?t=1472440</a></p>
-</li>
-<li><p><a href="https://code.google.com/p/toggleheadset2/" target="_blank">https://code.google.com/p/toggleheadset2/</a></p>
-</li>
+<li><a href="http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged" target="_blank">http://stackoverflow.com/questions/6834816/is-there-any-way-to-force-audio-through-the-speakers-when-headphones-are-plugged</a></li>
+<li><a href="http://forum.xda-developers.com/showthread.php?t=1472440" target="_blank">http://forum.xda-developers.com/showthread.php?t=1472440</a></li>
+<li><a href="https://code.google.com/p/toggleheadset2/" target="_blank">https://code.google.com/p/toggleheadset2/</a></li>
 </ol>
 ]]></content>
-    
+    <summary type="html"><![CDATA[<p>I want to force route audio stream to headphone for some tests, no matter headset is on or off.</p>
+<h4 id="api-has-been-deprecrated">API has been deprecrated</h4>
+<p>Andoird&#39;s <code>AudioManager</code> has such API before, called <a href="http://developer.android.com/reference/android/media/AudioManager.html" target="_blank">setRouting</a> , but it has deprecated for quite a long time. Currently, the available APIs can&#39;t meet my demands.</p>
+<blockquote>
+<p><strong>public void setRouting (int mode, int routes, int mask)</strong> </br>
+This method was deprecated in API level 4.
+Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() methods instead.</p>
+</blockquote>
+]]></summary>
     
       <category term="android" scheme="http://oneyoung.im/tags/android/"/>
     
