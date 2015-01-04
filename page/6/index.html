@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="chrome=1">
   
-  <title>bash | Logic in Chaos</title>
+  <title>第 6 页 | Logic in Chaos</title>
   <meta name="author" content="oneyoung">
   
   <meta name="description" content="This is oneyoung&#39;s Blog">
@@ -59,51 +59,44 @@
 </nav>
 <div class="clearfix"></div></header>
     <div class="content">
-<h2 class="archive-title tag">bash</h2>
-
-
-  
-    <article class="post">
+  <article class="post">
   <header>
     
       <div class="icon"></div>
-      <time datetime="2013-12-18T01:35:33.000Z"><a href="/2013/12/18/利用dropbox自动备份网站数据/">2013-12-18</a></time>
+      <time datetime="2013-02-02T18:08:33.000Z"><a href="/2013/02/03/ARCH-Linux-安装/">2013-02-03</a></time>
     
     
   
-    <h1 class="title"><a href="/2013/12/18/利用dropbox自动备份网站数据/">利用dropbox自动备份网站数据</a></h1>
+    <h1 class="title"><a href="/2013/02/03/ARCH-Linux-安装/">ARCH Linux 安装</a></h1>
   
 
   </header>
   
   <div class="entry">
     
-      <p>我等小blog网站自然是用不上高大上的备份方案, 但是不备份后果很严重, 万一那天VPS公司跑路了, 或者机器挂了, 东西就全没鸟.</p>
-<p>穷人只用的起免费的Dropbox =.=</p>
-<h4 id="-">安装</h4>
-<p>根据自己安装版本选择32或者64位的, 解压后会有一个.dropbox-dist的隐藏目录.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-</pre></td><td class="code"><pre><span class="comment"># Stable 32-bit:</span>
-wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86"</span>
- 
-<span class="comment"># Or stable 64-bit:</span>
-wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86_64"</span>
-
-tar -xvf dropbox.tar.gz
-</pre></td></tr></table></figure>
-
-<p>第一次在cmdline运行的时候, 会提示通过一个链接绑定帐号, 照着做就行了.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>~/.dropbox-dist/dropbox
-</pre></td></tr></table></figure>
-
-<p>然后就会在home目录下建立一个Dropbox的目录.</p>
+      <h4 id="-iso-">准备ISO 文件引导</h4>
+<h5 id="-iso-">下载ISO文件</h5>
+<p>我下的是201108 i686版本</p>
+<h5 id="-u-">用U盘启动。</h5>
+<p>因为我用的是multi-boot，不能直接dd，先做一个grub启动菜单</p>
+<pre><code>menuentry &quot;Arch Linux i686&quot; {
+    search --set -f &quot;/archlinux_i686.iso&quot;
+    loopback loop &quot;/archlinux_i686.iso&quot;
+    linux (loop)/arch/boot/i686/vmlinuz archisolabel=archiso
+    initrd (loop)/arch/boot/i686/archiso.img
+}
+</code></pre><blockquote>
+<p> 注意，这里加了 <em>archisolable</em> 选项，会在之后系统安装的时候用到</p>
+</blockquote>
+<p>然后,从U盘启动.系统会提示找不到boot device，这是因为从U盘启动的时候找不到arch iso 安装盘。这时会进入一个shell，可以在这里将ISO 挂载上：</p>
+<pre><code>mkdir /u_disk # create a directory for later U-disk mount
+mount -t vfat /dev/sdb2 /u_disk #check your U-disk, I install multi-boot in the second partition.
+# assigned the ISO to the system
+modprobe loop
+losetup /dev/loop0 /u_disk/archlinux_i686.iso
+ln -s /dev/loop0 /dev/disk/by-label/archiso
+exit
+</code></pre><p>从这之后就进入正常的安装过程了 ^_^</p>
 
     
   </div>
@@ -111,7 +104,7 @@ tar -xvf dropbox.tar.gz
     
       
         <div class="alignleft">
-          <a href="/2013/12/18/利用dropbox自动备份网站数据/#more" class="more-link">Read More</a>
+          <a href="/2013/02/03/ARCH-Linux-安装/#more" class="more-link">Read More</a>
         </div>
       
       
@@ -121,97 +114,15 @@ tar -xvf dropbox.tar.gz
 </article>
 
 
+
+
+<nav id="pagination">
   
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-12-17T22:58:11.000Z"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">2013-12-18</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">bash: vim 自动补全文件名卡住</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>本来home目录下的.bashrc用一个git维护着. 今天手贱, 在另一个目录下, 以为存在git, 直接git reset, 然后就悲剧了, home下面有些配置直接被干掉了 T.T</p>
-<p>然后就出现各种问题了, 发现bash中输入vim + TAB 之后就卡住了, 只能ctrl + C取消掉, 记得之前搞过, google了一通, 终于把它捞出来了.</p>
-<p>好像是bash-completion的问题 (REF: <a href="https://bbs.archlinux.org/viewtopic.php?id=115604" target="_blank">link</a> )</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre>$ pacman -Ss bash-completion
-extra/bash-completion <span class="number">2.1</span>-<span class="number">2</span> [installed]
-</pre></td></tr></table></figure>
-
-<p>运行一下下面这个就搞定了, 目测gvim, emacs也中枪. 可以加在.bashrc里.</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>complete <span class="attribute">-f</span> <span class="attribute">-X</span> <span class="string">'*.@(o|so|so.!(conf)|a|rpm|gif|GIF|jp?(e)g|JP?(E)G|mp3|MP3|mp?(e)g|MPG|avi|AVI|asf|ASF|ogg|OGG|class|CLASS)'</span> vi vim gvim rvim view rview rgvim rgview gview emacs xemacs sxemacs kate kwrite
-</pre></td></tr></table></figure>
-
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/12/18/bash:-vim-自动补全文件名卡住/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-03-04T23:49:33.000Z"><a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/">2013-03-05</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/">通过kernel Makefile 生成 cscope ctags</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>在kernel 中使用cscope 经常会出现很多的数据是没有用，比如一个函数被不同版本的驱动定义了很多次，而这些版本是我们不需要的，查找定义是会出现很多的选项，看得眼睛都花了 T.T </p>
-<p>于是写了一个脚本，通过kernel makefile 来生成这些数据库，这样查找就能很精确，一步到位 ^_^</p>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/03/05/通过kernel-Makefile-生成-cscope-ctags/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
-
-  <nav id="pagination">
+    <a href="/page/5/" class="prev">上一页</a>
   
   
   <div class="clearfix"></div>
-</nav>
-
-</div>
+</nav></div>
   </div>
   <div class="widget-wrapper">
     <aside id="sidebar">

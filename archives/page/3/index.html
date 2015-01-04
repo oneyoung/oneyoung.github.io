@@ -67,6 +67,47 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2014-03-02T09:12:33.000Z"><a href="/2014/03/02/a-framework-implement-for-fsm/">2014-03-02</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/03/02/a-framework-implement-for-fsm/">A framework for event driven FSM</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>建立一个<strong>通用</strong>事件驱动的状态机:</p>
+<ol>
+<li>状态机的架构与具体的事件和状态的定义分开.</li>
+<li>状态与事件是低耦合的, 即状态不用关心是什么事件导致状态机进入这个状态.</li>
+<li>每个状态的进入或者退出, 会触发对应的处理函数.</li>
+</ol>
+<h3 id="implement">Implement</h3>
+<p>以下代码为了结构清晰, 会省略一些细节和保护处理, 也有可能不符合C的强类型语法要求, 就权当成伪代码看待吧, 直接copy &amp; paste, 编译器肯定会报错滴 -,-</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/03/02/a-framework-implement-for-fsm/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2014-02-23T07:34:12.000Z"><a href="/2014/02/23/[读书笔记]别独自用餐/">2014-02-23</a></time>
     
     
@@ -252,59 +293,6 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
 
 
   
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-10-25T00:44:42.000Z"><a href="/2013/10/25/[python]-operator-module-加速简单函数/">2013-10-25</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/10/25/[python]-operator-module-加速简单函数/">operator module 加速简单函数</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
-    <span class="keyword">return</span> x + y
-</pre></td></tr></table></figure>
-
-<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
-<h4 id="-lambda-">与lambda对比测试</h4>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
-<span class="number">0.17214393615722656</span>
-<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
-<span class="number">0.11670303344726562</span>
-</pre></td></tr></table></figure>
-
-<p>单个函数看, 有30%的效率提升.</p>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/10/25/[python]-operator-module-加速简单函数/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
 
   <nav id="pagination">
   
@@ -334,7 +322,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>18</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>19</small></li>
   
   </ul>
 </div>
@@ -349,7 +337,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
   
-    <li><a href="/tags/android/">android</a><small>4</small></li>
+    <li><a href="/tags/android/">android</a><small>5</small></li>
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
@@ -357,7 +345,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
-    <li><a href="/tags/java/">java</a><small>3</small></li>
+    <li><a href="/tags/java/">java</a><small>4</small></li>
   
     <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
   
@@ -365,7 +353,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/mail/">mail</a><small>1</small></li>
   
-    <li><a href="/tags/multimedia/">multimedia</a><small>2</small></li>
+    <li><a href="/tags/multimedia/">multimedia</a><small>3</small></li>
   
     <li><a href="/tags/python/">python</a><small>11</small></li>
   
@@ -387,7 +375,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 16.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 14.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 12.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 18.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 16.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
   </div>
 </div>
 
@@ -398,7 +386,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   </div>
   <footer id="footer"><div class="copyright">
   
-  &copy; 2014 <a href="/">oneyoung</a>
+  &copy; 2015 <a href="/">oneyoung</a>
   
 </div>
 <div class="theme-copyright">
