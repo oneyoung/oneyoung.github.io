@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-01-04T07:23:59.133Z</updated>
+  <updated>2015-01-30T09:01:27.838Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -13,6 +13,150 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[[Java] Catch Thread Exception]]></title>
+    <link href="http://oneyoung.im/2015/01/30/catch-exception-in-thread/"/>
+    <id>http://oneyoung.im/2015/01/30/catch-exception-in-thread/</id>
+    <published>2015-01-30T08:57:25.000Z</published>
+    <updated>2015-01-30T09:01:20.000Z</updated>
+    <content type="html"><![CDATA[<p>Java has a annoying feature that if any Exception happens, you must report it as <code>throws XXXException</code>.</p>
+<p>If you want to run something in a Thread, but still want to catch Exception <strong>outside</strong> that Thread.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>    ExecutorService executor = Executors.newCachedThreadPool();
+    <span class="keyword">try</span> {
+        executor.execute(<span class="keyword">new</span> Runnable() {
+            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span> () {
+                <span class="comment">// code might throw Throwable or any other Exceptions.</span>
+            }
+        });
+    } <span class="keyword">catch</span> (Throwable e) {
+            <span class="comment">// handling exception here.</span>
+    }
+</pre></td></tr></table></figure>
+
+<p><a id="more"></a>
+Even you use <code>ExecutorService</code>, the compiler still complain that Exception not caught.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>error: unreported <span class="keyword">exception</span> Throwable; must be caught <span class="keyword">or</span> declared <span class="keyword">to</span> be thrown
+</pre></td></tr></table></figure>
+
+<h2 id="workaround">Workaround</h2>
+<h4 id="1-wrap-the-exception-in-runtimeexception-">1. Wrap the exception in <code>RuntimeException</code></h4>
+<p>Note that we use Exception Chaining in <em>line 8</em> : <code>.initCause(e)</code> to keep the original Exception message.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">XxxThread</span> <span class="keyword">implements</span> <span class="title">Runnable</span> {</span>
+        <span class="annotation">@Override</span>
+        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span>() {
+            <span class="keyword">try</span> {
+       ...
+            } <span class="keyword">catch</span> (Throwable e) {
+                RuntimeException exp = <span class="keyword">new</span> RuntimeException();
+                exp.initCause(e);
+                <span class="keyword">throw</span> exp;
+            }
+        }
+    }
+</pre></td></tr></table></figure>
+
+<ul>
+<li>Pro: can catch any Exception, even <code>Throwable</code> object</li>
+<li>Con: determining which kind of Exception might need more effort, use <code>Throwable.setCause()</code>.</li>
+</ul>
+<h4 id="2-use-callable-type-">2. Use <code>Callable&lt;Type&gt;</code></h4>
+<p>Note that <code>Callable.call()</code> can throw Exception.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre></td><td class="code"><pre>    <span class="keyword">final</span> Callable&lt;Integer&gt; callable = <span class="keyword">new</span> Callable&lt;Integer&gt;() {
+
+        <span class="annotation">@Override</span>
+        <span class="keyword">public</span> Integer <span class="title">call</span>() <span class="keyword">throws</span> Exception {
+            ... code that can <span class="keyword">throw</span> a checked exception ...
+        }
+    };
+    <span class="keyword">final</span> ExecutorService executor = Executors.newSingleThreadExecutor();
+    <span class="keyword">final</span> Future&lt;Integer&gt; future = executor.submit(callable);
+    <span class="keyword">try</span> {
+        future.get();
+    } <span class="keyword">finally</span> {
+        executor.shutdown();
+    }
+</pre></td></tr></table></figure>
+
+<ul>
+<li>Pro: can throws Exception as usual.</li>
+<li>Con:<ul>
+<li>it&#39;s a little wired if you have no intend to return anything.</li>
+<li><code>.call()</code> can NOT throw <code>Throwable</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="reference-">Reference:</h3>
+<p><a href="http://stackoverflow.com/questions/6548794/how-do-i-declare-an-exception-in-an-anonymous-thread" target="_blank">http://stackoverflow.com/questions/6548794/how-do-i-declare-an-exception-in-an-anonymous-thread</a></p>
+]]></content>
+    <summary type="html"><![CDATA[<p>Java has a annoying feature that if any Exception happens, you must report it as <code>throws XXXException</code>.</p>
+<p>If you want to run something in a Thread, but still want to catch Exception <strong>outside</strong> that Thread.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre>    ExecutorService executor = Executors.newCachedThreadPool();
+    <span class="keyword">try</span> {
+        executor.execute(<span class="keyword">new</span> Runnable() {
+            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span> () {
+                <span class="comment">// code might throw Throwable or any other Exceptions.</span>
+            }
+        });
+    } <span class="keyword">catch</span> (Throwable e) {
+            <span class="comment">// handling exception here.</span>
+    }
+</pre></td></tr></table></figure>
+
+<p>]]></summary>
+    
+      <category term="java" scheme="http://oneyoung.im/tags/java/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[[Android] Camera callback not be invoked]]></title>
@@ -4170,263 +4314,6 @@ Any class which inherits from object. This includes all built-in types like list
 ]]></summary>
     
       <category term="python" scheme="http://oneyoung.im/tags/python/"/>
-    
-      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[Setup a mail server to send email only]]></title>
-    <link href="http://oneyoung.im/2013/07/20/Setup-a-mail-server-to-send-email-only/"/>
-    <id>http://oneyoung.im/2013/07/20/Setup-a-mail-server-to-send-email-only/</id>
-    <published>2013-07-20T07:58:17.000Z</published>
-    <updated>2013-11-28T00:48:00.000Z</updated>
-    <content type="html"><![CDATA[<h3 id="smtp-server">SMTP server</h3>
-<p>Here I just choose postfix.
-Someone on the Internet said the configuration was very complicated, but after I install postfix, I found the default config file is OK if you just want to send email from you locathost.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install postfix
-</pre></td></tr></table></figure>
-
-<p>At first time when you test sending email, you might encount with such error:</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre>postdrop: warning: unable <span class="built_in">to</span> look up public/pickup: 
-No such <span class="built_in">file</span> <span class="operator">or</span> <span class="built_in">directory</span>
-</pre></td></tr></table></figure>
-
-<p>That&#39;s because old sendmail daemon still running, just stop it and restart postfix can fix:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre>$ <span class="built_in">sudo</span> /etc/init.d/sendmail stop 
-$ <span class="built_in">sudo</span>  mkfifo /var/spool/postfix/public/pickup
-$ <span class="built_in">sudo</span> /etc/init.d/postfix restart
-</pre></td></tr></table></figure>
-
-<a id="more"></a>
-
-<h3 id="dns-mx-field">DNS <code>MX</code> field</h3>
-<p>Make sure your dns has MX field, here I don&#39;t add any prefix to my domain, just as the origin.
-Here I take my domain &#39;one-young.com&#39; for example.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre>$ dig -t MX one-young.com
-
-;; ANSWER SECTION:
-one-young.com.          <span class="number">3600</span>    IN      MX      <span class="number">0</span> one-young.com.
-</pre></td></tr></table></figure>
-
-<h3 id="dkim">DKIM</h3>
-<h4 id="add-dkim-field-to-your-domain-record">Add DKIM field to your domain record</h4>
-<h5 id="first-install-required-packages-we-need-opendkim-tools-in-order-to-get-i-opendkim-genkey-">First, install required packages (we need opendkim-tools in order to get i<code>opendkim-genkey</code>):</h5>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install opendkim opendkim-tools
-</pre></td></tr></table></figure>
-
-<h5 id="generate-keys-for-later-use-">Generate keys for later use:</h5>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-</pre></td><td class="code"><pre>opendkim-genkey -r <span class="operator">-d</span> one-young.com <span class="operator">-s</span> default
-<span class="comment"># -r option indicate this key is for email use only, -d follow the domain.</span>
-<span class="comment"># -s for selector name, that is to say you can have multiple keys,</span>
-<span class="comment">#    and use the selector to determine which one to use.</span>
-<span class="comment">#    here we just use 'default'</span>
-</pre></td></tr></table></figure>
-
-<p>after run this command, will generate two file in current dir:</p>
-<ul>
-<li>&#39;SELECTOR.txt&#39; -- public key, you need to add in your domain txt field</li>
-<li>&#39;SELECTOR.private&#39; -- private key for opendkim use</li>
-</ul>
-<p>Here, since we use &#39;default&#39; as selector name, &#39;default.txt&#39; &amp; &#39;default.private&#39; will be generated.</p>
-<h5 id="add-dkim-key-to-your-domain">Add DKIM key to your domain</h5>
-<p>Below is the content of my default.txt</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre><span class="keyword">default</span>._domainkey	<span class="keyword">IN</span>	TXT	( <span class="string">"v=DKIM1; k=rsa; s=email; "</span>
-	  <span class="string">"p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDoyy7K+KFmXjuBMFtIpzMsfmouaI2479gbLMtixDRQAD3UBD58n9yPlpvYm9lRIlAUL4WgNRARA6CjTLBUdO6TMDsrYP3FhrgyWIB3HvesuZU+IVoGFq3FHDsCl+Ah9FiS9LsYWPo3UcMJB1g0Qeamm6e+uJrVe5UVUKKPYoJ+QwIDAQAB"</span> )  ; ----- DKIM <span class="keyword">key</span> <span class="keyword">default</span> <span class="keyword">for</span> one-young.com
-</pre></td></tr></table></figure>
-
-<p>So we can add a TXT entry in your domain record.</p>
-<ul>
-<li>host -- <code>SELECTOR._domainkey.YOURDOMAIN</code>, here we use <code>default._domainkey.one-young.com</code></li>
-<li>value -- paste the content of <code>()</code>: <code>v=DKIM1; k=rsa; s=email; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDoyy7K+KFmXjuBMFtIpzMsfmouaI2479gbLMtixDRQAD3UBD58n9yPlpvYm9lRIlAUL4WgNRARA6CjTLBUdO6TMDsrYP3FhrgyWIB3HvesuZU+IVoGFq3FHDsCl+Ah9FiS9LsYWPo3UcMJB1g0Qeamm6e+uJrVe5UVUKKPYoJ+QwIDAQAB</code></li>
-</ul>
-<p>Let&#39;s check out the result:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre>$ dig  -t txt default._domainkey.one-young.com
-
-;; ANSWER SECTION:
-default._domainkey.one-young.com. <span class="number">3599</span> IN TXT   <span class="string">"v=DKIM1\; k=rsa\; s=email\; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDoyy7K+KFmXjuBMFtIpzMsfmouaI2479gbLMtixDRQAD3UBD58n9yPlpvYm9lRIlAUL4WgNRARA6CjTLBUdO6TMDsrYP3FhrgyWIB3HvesuZU+IVoGFq3FHDsCl+Ah9FiS9LsYWPo3UcMJB1g0Qeamm6e+uJrVe5UVUKKPYoJ+QwIDAQAB"</span>
-</pre></td></tr></table></figure>
-
-<h5 id="have-a-check">have a check</h5>
-<p><a href="http://dkimcore.org/tools/" target="_blank">DkimCore</a> provide a good tools to valid your DNS dkim fields, you can have a check.</p>
-<h4 id="use-opendkim-to-sign-your-email">use <code>opendkim</code> to sign your email</h4>
-<h5 id="config-opendkim">config opendkim</h5>
-<p>opendkim config locate in <code>/etc/opendkim.conf</code>, add the below fileds to your config file.
-If you need more options, you can <code>man opendkim.conf</code> for more information.</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-</pre></td><td class="code"><pre><span class="comment"># this is the uid of postfix, you can get by `id postfix`</span>
-<span class="title">UMask</span>			<span class="number">107</span>
-
-<span class="comment"># host config</span>
-ExternalIgnoreList      <span class="url">refile:/etc/opendkim/TrustedHosts</span>
-InternalHosts           <span class="url">refile:/etc/opendkim/TrustedHosts</span>
-KeyTable                <span class="url">refile:/etc/opendkim/KeyTable</span>
-SigningTable            <span class="url">refile:/etc/opendkim/SigningTable</span>
-
-<span class="comment"># run in both signing and validate mode</span>
-Mode					sv
-
-<span class="comment"># we set up a socket for postfix dameon connection</span>
-Socket inet:<span class="number">9999</span><span class="variable">@localhost</span>
-
-<span class="comment"># misc config below, not necessary if you don't want</span>
-Canonicalization        relaxed/relaxed
-SignatureAlgorithm      rsa-sha256
-
-AutoRestart             <span class="built_in">yes</span>
-Background              <span class="built_in">yes</span>
-
-LogResults 		<span class="built_in">yes</span>
-Statistics              /var/log/dkim-stats
-</pre></td></tr></table></figure>
-
-<p>We can see in host config section, we add 3 files here.</p>
-<ul>
-<li><p>/etc/opendkim/TrustedHosts -- a list of servers to “trust” when signing or verifying</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>
-localhost
-<span class="constant">one</span>-young.me
-</pre></td></tr></table></figure>
-</li>
-<li><p>/etc/opendkim/KeyTable -- seclector index to our keys. <em>make sure opendkim can access key files</em>: you can chown to opendkim <code>sudo chown opendkim PATH_TO_YOUR_PRIVATE_KEYS</code></p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre><span class="keyword">default</span>._domainkey.one-young.com one-young.com:<span class="keyword">default</span>:/<span class="keyword">var</span>/db/dkim/<span class="keyword">default</span>.<span class="keyword">private</span>
-</pre></td></tr></table></figure>
-</li>
-<li><p>/etc/opendkim/SigningTable --  a list of domains and accounts allowed to sign. The below example means email at <code>one-young.com</code> domain should use default keys to sign.</p>
-</li>
-</ul>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>*@one-young<span class="preprocessor">.com</span> default._domainkey<span class="preprocessor">.one</span>-young<span class="preprocessor">.com</span>
-</pre></td></tr></table></figure>
-
-<h5 id="after-you-have-done-this-you-can-restart-opendkim-to-take-effect">After you have done this, you can restart opendkim to take effect</h5>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>/etc/init.d/opendkim restart
-</pre></td></tr></table></figure>
-
-<h5 id="config-postfix-to-sign-email-by-opendkim">config postfix to sign email by opendkim</h5>
-<p>add the below lines to <code>/etc/postfix/main.cf</code></p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre><span class="setting">smtpd_milters= <span class="value">inet:localhost:<span class="number">9999</span></span></span>
-<span class="setting">milter_default_action = <span class="value">accept</span></span>
-<span class="setting">milter_protocol = <span class="value"><span class="number">2</span></span></span>
-<span class="setting">non_smtpd_milters = <span class="value">inet:localhost:<span class="number">9999</span></span></span>
-</pre></td></tr></table></figure>
-
-<p>Remember, we created a socket in opendkim at port 9999, here we redirect postfix to it.</p>
-<p>Be sure to restart postfix to take effect: <code>/etc/init.d/postfix restart</code></p>
-<h5 id="test">test</h5>
-<p>Now you can have a try on sending email, and check if DKIM head added.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre><span class="built_in">echo</span> <span class="string">"test"</span> | mail YOUR-OUTER-MAILBOX@xxx.com
-</pre></td></tr></table></figure>
-
-<p>if you have some problems, you can have a check at /var/log/mail.log</p>
-<h3 id="add-spf-field-to-increase-mail-delivery-rate">Add <code>SPF</code> field to increase mail delivery rate</h3>
-<p><code>SPF</code> is a txt field of domain record to check auth sending mail host.</p>
-<ul>
-<li>host -- domain name of you email host, typically MX record</li>
-<li>value -- <code>v=spf1 a mx ptr mx:one-young.com -all</code></li>
-</ul>
-<p>Let&#39;s check the result</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre>$ dig -t txt one-young.com
-
-;; ANSWER SECTION:
-one-young.com.          <span class="number">3600</span>    IN      TXT     <span class="string">"v=spf1 a mx ptr mx:one-young.com -all"</span>
-</pre></td></tr></table></figure>
-
-<h3 id="config-ptr-to-enable-reverse-lookup">Config <code>PTR</code> to enable reverse lookup</h3>
-<p>Your domain service provider should have such options, for me, in Godaddy, just click a memu.</p>
-<p>Refs:
-<a href="http://www.quanlei.com/2012/06/3148.html" target="_blank">1</a>
-<a href="http://stevejenkins.com/blog/2010/09/how-to-get-dkim-domainkeys-identified-mail-working-on-centos-5-5-and-postfix-using-opendkim/" target="_blank">2</a>
-<a href="https://wiki.archlinux.org/index.php/OpenDKIM" target="_blank">3</a>
-<a href="http://linuxhostingsupport.net/blog/postfix-postdrop-unable-to-look-up-publicpickup-no-such-file-or-directory" target="_blank">4</a></p>
-]]></content>
-    <summary type="html"><![CDATA[<h3 id="smtp-server">SMTP server</h3>
-<p>Here I just choose postfix.
-Someone on the Internet said the configuration was very complicated, but after I install postfix, I found the default config file is OK if you just want to send email from you locathost.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre><span class="built_in">sudo</span> apt-get install postfix
-</pre></td></tr></table></figure>
-
-<p>At first time when you test sending email, you might encount with such error:</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre>postdrop: warning: unable <span class="built_in">to</span> look up public/pickup: 
-No such <span class="built_in">file</span> <span class="operator">or</span> <span class="built_in">directory</span>
-</pre></td></tr></table></figure>
-
-<p>That&#39;s because old sendmail daemon still running, just stop it and restart postfix can fix:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre>$ <span class="built_in">sudo</span> /etc/init.d/sendmail stop 
-$ <span class="built_in">sudo</span>  mkfifo /var/spool/postfix/public/pickup
-$ <span class="built_in">sudo</span> /etc/init.d/postfix restart
-</pre></td></tr></table></figure>
-
-]]></summary>
-    
-      <category term="web" scheme="http://oneyoung.im/tags/web/"/>
-    
-      <category term="mail" scheme="http://oneyoung.im/tags/mail/"/>
     
       <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
     

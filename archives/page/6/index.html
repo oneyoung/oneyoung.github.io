@@ -67,6 +67,83 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2013-02-17T19:09:52.000Z"><a href="/2013/02/18/部署Django到Lighttpd/">2013-02-18</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/02/18/部署Django到Lighttpd/">部署Django到Lighttpd</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="django-fastcgi">Django &amp; FastCGI</h3>
+<h4 id="-">软件包依赖</h4>
+<p>在Django上使用FastCGI需要<code>flup</code>包:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>pip install flup
+</pre></td></tr></table></figure>
+
+<h4 id="-django-server">运行Django server</h4>
+<p>Django 内置有<code>runfcgi</code>命令, 建立一个脚本, 运行Django:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="code"><pre><span class="shebang">#!/bin/sh</span>
+app_path=<span class="string">'/path/to/django-app/'</span>
+p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
+<span class="built_in">cd</span> <span class="string">"<span class="variable">$app_path</span>"</span>
+<span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$p</span> ]; <span class="keyword">then</span>
+    kill $(cat -- <span class="variable">$p</span>)
+    rm <span class="operator">-f</span> -- <span class="variable">$p</span>
+<span class="keyword">fi</span>
+
+<span class="keyword">exec</span> /usr/bin/env \
+    PYTHONPATH=<span class="string">"<span class="variable">$app_path</span>/.."</span> python \
+    manage.py runfcgi \
+    method=threaded \
+    host=<span class="number">127.0</span>.<span class="number">0.1</span> \
+    port=<span class="number">3033</span> \
+    pidfile=<span class="string">"<span class="variable">$p</span>"</span>
+</pre></td></tr></table></figure>
+
+<p>这里使用的TCP方式, 使用127.0.0.1:3033 地址.</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/02/18/部署Django到Lighttpd/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2013-02-02T18:08:33.000Z"><a href="/2013/02/03/ARCH-Linux-安装/">2013-02-03</a></time>
     
     
@@ -146,7 +223,7 @@ exit
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>19</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>20</small></li>
   
   </ul>
 </div>
@@ -169,7 +246,7 @@ exit
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
-    <li><a href="/tags/java/">java</a><small>4</small></li>
+    <li><a href="/tags/java/">java</a><small>5</small></li>
   
     <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
   
@@ -199,7 +276,7 @@ exit
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 18.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 16.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 18.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
   </div>
 </div>
 
