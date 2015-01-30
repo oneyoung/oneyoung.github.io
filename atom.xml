@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-01-30T09:01:27.838Z</updated>
+  <updated>2015-01-30T09:08:11.704Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -19,7 +19,7 @@
     <link href="http://oneyoung.im/2015/01/30/catch-exception-in-thread/"/>
     <id>http://oneyoung.im/2015/01/30/catch-exception-in-thread/</id>
     <published>2015-01-30T08:57:25.000Z</published>
-    <updated>2015-01-30T09:01:20.000Z</updated>
+    <updated>2015-01-30T09:08:05.000Z</updated>
     <content type="html"><![CDATA[<p>Java has a annoying feature that if any Exception happens, you must report it as <code>throws XXXException</code>.</p>
 <p>If you want to run something in a Thread, but still want to catch Exception <strong>outside</strong> that Thread.</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre>1
@@ -45,13 +45,14 @@
 </pre></td></tr></table></figure>
 
 <p><a id="more"></a>
-Even you use <code>ExecutorService</code>, the compiler still complain that Exception not caught.</p>
+Even you use <code>ExecutorService</code>, the compiler still complain that Exception not caught, because <code>Runnable.run()</code> does not declare with <code>throws</code> statement.</p>
 <figure class="highlight"><table><tr><td class="gutter"><pre>1
 </pre></td><td class="code"><pre>error: unreported <span class="keyword">exception</span> Throwable; must be caught <span class="keyword">or</span> declared <span class="keyword">to</span> be thrown
 </pre></td></tr></table></figure>
 
 <h2 id="workaround">Workaround</h2>
 <h4 id="1-wrap-the-exception-in-runtimeexception-">1. Wrap the exception in <code>RuntimeException</code></h4>
+<p>Although <code>Runnable.run()</code> does not allow throws Exception, <code>RuntimeException</code> is still allowed.</p>
 <p>Note that we use Exception Chaining in <em>line 8</em> : <code>.initCause(e)</code> to keep the original Exception message.</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre>1
 2

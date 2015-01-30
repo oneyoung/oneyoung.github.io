@@ -98,13 +98,14 @@
 </pre></td></tr></table></figure>
 
 <p><a id="more"></a>
-Even you use <code>ExecutorService</code>, the compiler still complain that Exception not caught.</p>
+Even you use <code>ExecutorService</code>, the compiler still complain that Exception not caught, because <code>Runnable.run()</code> does not declare with <code>throws</code> statement.</p>
 <figure class="highlight"><table><tr><td class="gutter"><pre>1
 </pre></td><td class="code"><pre>error: unreported <span class="keyword">exception</span> Throwable; must be caught <span class="keyword">or</span> declared <span class="keyword">to</span> be thrown
 </pre></td></tr></table></figure>
 
 <h2 id="workaround">Workaround</h2>
 <h4 id="1-wrap-the-exception-in-runtimeexception-">1. Wrap the exception in <code>RuntimeException</code></h4>
+<p>Although <code>Runnable.run()</code> does not allow throws Exception, <code>RuntimeException</code> is still allowed.</p>
 <p>Note that we use Exception Chaining in <em>line 8</em> : <code>.initCause(e)</code> to keep the original Exception message.</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre>1
 2
