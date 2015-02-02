@@ -1,0 +1,568 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  
+  <title>[Android] wrong playback state when playing MIDI as Ringtone | Logic in Chaos</title>
+  <meta name="author" content="oneyoung">
+  
+  <meta name="description" content="This is oneyoung&#39;s Blog">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta property="og:title" content="[Android] wrong playback state when playing MIDI as Ringtone"/>
+  <meta property="og:site_name" content="Logic in Chaos"/>
+
+  <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/js/jquery.min.js"></script>
+  
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38653003-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+</head>
+
+
+<body>
+  <div class="wrapper">
+    <header id="header"><div class="title">
+  <h1><a href="/">Logic in Chaos</a></h1>
+  <p><a href="/">Finding way to program the life</a></p>
+</div>
+<nav class="nav">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+      <li><a href="/atom.xml">RSS</a></li>
+    
+      <li><a href="/about">About</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+    <div class="content"><article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2015-02-02T08:18:53.000Z"><a href="/2015/02/02/wrong-playback-state-when-playing-midi-as-ringtone/">2015-02-02</a></time>
+    
+    
+  
+    <h1 class="title">[Android] wrong playback state when playing MIDI as Ringtone</h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="the-problem">The Problem</h3>
+<ol>
+<li>play a MIDI file as Ringtone.</li>
+<li>check whether <code>.isPlaying()</code> after <code>.play()</code></li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>      Uri midiUri = Uri.parse( <span class="string">"/sdcard/some/path/to/example.midi"</span>);
+      Ringtone ringtone = RingtoneManager.getRingtone(mContext, midiUri);
+      ringtone.play();
+      assertTrue(<span class="string">"Couldn't play ringtone "</span> + midiUri, ringtone.isPlaying());
+</pre></td></tr></table></figure>
+
+<p>The problems is that the last line always fails.</p>
+<a id="more"></a>
+
+<h3 id="how-ringtone-is-played-">How Ringtone is played?</h3>
+<p><em>Playing Ringtone in Android is nothing special than play a &quot;.mp3&quot; files.</em></p>
+<p>when invoking <code>RingtoneManager.getRingtone()</code> it actually create a <code>Ringtone()</code> instance, and call <code>.setUri()</code></p>
+<blockquote>
+<p>frameworks/base/media/java/android/media/RingtoneManager.java</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="keyword">static</span> Ringtone <span class="title">getRingtone</span>(<span class="keyword">final</span> Context context, Uri ringtoneUri) {
+        <span class="comment">// Don't set the stream type</span>
+        <span class="keyword">return</span> getRingtone(context, ringtoneUri, -<span class="number">1</span>);
+    }
+
+    <span class="keyword">private</span> <span class="keyword">static</span> Ringtone <span class="title">getRingtone</span>(<span class="keyword">final</span> Context context, Uri ringtoneUri, <span class="keyword">int</span> streamType) {
+...
+            <span class="keyword">final</span> Ringtone r = <span class="keyword">new</span> Ringtone(context, <span class="keyword">true</span>);
+            <span class="keyword">if</span> (streamType &gt;= <span class="number">0</span>) {
+                r.setStreamType(streamType);
+            }
+            r.setUri(ringtoneUri);
+            <span class="keyword">return</span> r;
+    }
+</pre></td></tr></table></figure>
+
+<p><code>Ringtone</code> class actually use <code>MediaPlayer</code> to play ringtone.</p>
+<blockquote>
+<p>frameworks/base/media/java/android/media/Ringtone.java</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setUri</span>(Uri uri) {
+    ...
+        mLocalPlayer = <span class="keyword">new</span> MediaPlayer();
+        ...
+            mLocalPlayer.setDataSource(mContext, mUri);
+            mLocalPlayer.setAudioAttributes(mAudioAttributes);
+            mLocalPlayer.prepare();
+        ...
+    }
+</pre></td></tr></table></figure>
+
+<h3 id="how-mediaplayer-handles-midi-file-">How MediaPlayer handles MIDI file?</h3>
+<p>The underlying Java, Android will allocate different player for different media types.</p>
+<blockquote>
+<p>frameworks/av/media/libmediaplayerservice/MediaPlayerFactory.cpp</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+</pre></td><td class="code"><pre><span class="keyword">class</span> SonivoxPlayerFactory : <span class="keyword">public</span> MediaPlayerFactory::IFactory {
+  <span class="keyword">public</span>:
+    <span class="keyword">virtual</span> <span class="keyword">float</span> scoreFactory(<span class="keyword">const</span> sp&lt;IMediaPlayer&gt;& <span class="comment">/*client*/</span>, ...) {
+        <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">char</span>* <span class="keyword">const</span> FILE_EXTS[] = { <span class="string">".mid"</span>,
+                                                 <span class="string">".midi"</span>,
+                                                 <span class="string">".smf"</span>,
+                                                 <span class="string">".xmf"</span>,
+                                                 <span class="string">".mxmf"</span>,
+                                                 <span class="string">".imy"</span>,
+                                                 <span class="string">".rtttl"</span>,
+                                                 <span class="string">".rtx"</span>,
+                                                 <span class="string">".ota"</span> };
+    ....
+    <span class="keyword">virtual</span> sp&lt;MediaPlayerBase&gt; createPlayer() {
+        ALOGV(<span class="string">" create MidiFile"</span>);
+        <span class="keyword">return</span> <span class="keyword">new</span> MidiFile();
+    }
+}
+</pre></td></tr></table></figure>
+
+<p>You can see that if file extension is &quot;midi&quot;, it will use <code>MidiFile()</code> as the real MediaPlayer.</p>
+<h4 id="what-is-midifile-">What is <code>MidiFile</code>?</h4>
+<p>Actually the cpp class <code>MidiFile</code> is just a wrapper for libsonivox, making it compatiable for <code>MediaPlayerBase</code></p>
+<blockquote>
+<p>frameworks/av/media/libmediaplayerservice/MifiFile.cpp</p>
+</blockquote>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="code"><pre>  ▼ MidiFile* : <span class="keyword">class</span>
+      [functions]
+      MidiFile()
+      setDataSource( <span class="keyword">const</span> sp&lt;IMediaHTTPService&gt; & , <span class="keyword">const</span> <span class="built_in">char</span>* path, <span class="keyword">const</span> KeyedVector&lt;String8, String8&gt; *)
+      setDataSource(<span class="keyword">int</span> fd, int64_t offset, int64_t length)
+      prepare()
+      prepareAsync()
+      start()
+      stop()
+      seekTo(<span class="keyword">int</span> position)
+      pause()
+      isPlaying()
+      getCurrentPosition(<span class="keyword">int</span>* position)
+      getDuration(<span class="keyword">int</span>* duration)
+      release()
+      reset()
+</pre></td></tr></table></figure>
+
+<p>Note that it also implement the interface <code>isPlaying()</code>.</p>
+<h4 id="how-it-check-isplaying-">How it check <code>isPlaying()</code>?</h4>
+<p>It use a state called <code>EAS_STATE_PLAY</code> which defined in libsonvix. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre><span class="keyword">bool</span> MidiFile::isPlaying()
+{
+    ALOGV(<span class="string">"MidiFile::isPlaying, mState=%d"</span>, <span class="keyword">int</span>(mState));
+    <span class="keyword">if</span> (!mEasHandle || mPaused) <span class="keyword">return</span> <span class="keyword">false</span>;
+    <span class="keyword">return</span> (mState == EAS_STATE_PLAY);
+}
+</pre></td></tr></table></figure>
+
+<h3 id="let-s-see-the-log">Let&#39;s see the log</h3>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::setLooping</span>
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::start</span>
+01-01 20:05:16.335 V/MidiFile( 2832):   wakeup render thread
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::render - signal rx'd</span>
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::isPlaying, mState=0</span>
+* 01-01 20:05:16.336 E/MediaPlayer( 5515): internal/external state mismatch corrected
+01-01 20:05:16.337 V/MidiFile( 2832): MidiFile<span class="comment">::render - create output track</span>
+</pre></td></tr></table></figure>
+
+<p><em>line 5</em>, it print that the <code>mState=0</code>, which means <code>EAS_STATE_READY</code>.</p>
+<blockquote>
+<p><code>external/sonivox/arm-fm-22k/host_src/eas_types.h</code></p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre><span class="comment">/* EAS_STATE return codes */</span>
+<span class="keyword">typedef</span> <span class="keyword">enum</span>
+{
+    EAS_STATE_READY = <span class="number">0</span>,
+    EAS_STATE_PLAY,
+    EAS_STATE_STOPPING,
+    EAS_STATE_PAUSING,
+    ...
+} E_EAS_STATE;
+</pre></td></tr></table></figure>
+
+<p>That is to say, MediaPlayer still stay in &quot;Ready&quot; state after <code>.start()</code>. It&#39;s a <strong>state mismatch</strong>, <em>line 6</em> also print this error.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="number">01</span>-<span class="number">01</span> <span class="number">20</span>:<span class="number">05</span>:<span class="number">16.336</span> E/MediaPlayer( <span class="number">5515</span>): <span class="keyword">internal</span>/external state mismatch corrected
+</pre></td></tr></table></figure>
+
+<blockquote>
+<p>frameworks/av/media/libmedia/mediaplayer.cpp</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre></td><td class="code"><pre><span class="keyword">bool</span> MediaPlayer::isPlaying()
+{
+    ...
+    <span class="keyword">if</span> (mPlayer != <span class="number">0</span>) {
+        <span class="keyword">bool</span> temp = <span class="keyword">false</span>;
+        mPlayer-&gt;isPlaying(&temp);
+        <span class="keyword">if</span> ((mCurrentState & MEDIA_PLAYER_STARTED) && ! temp) {
+*            ALOGE(<span class="string">"internal/external state mismatch corrected"</span>);
+            mCurrentState = MEDIA_PLAYER_PAUSED;
+        }
+        <span class="keyword">return</span> temp;
+    }
+...
+}
+</pre></td></tr></table></figure>
+
+<h3 id="how-the-state-mismatch-happens-">How the state mismatch happens?</h3>
+<p>In <code>MidiFile::start()</code>, it actually set <code>mState</code> here, instead, it try to wakeup a thread call <code>render</code>. The real stuff is handled there.</p>
+<blockquote>
+<p>frameworks/av/media/libmediaplayerservice/MifiFile.cpp</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre>status_t MidiFile::start()
+{
+    ALOGV(<span class="string">"MidiFile::start"</span>);
+    ...
+    <span class="comment">// wake up render thread</span>
+    ALOGV(<span class="string">"  wakeup render thread"</span>);
+    mCondition.signal();
+    <span class="keyword">return</span> NO_ERROR;
+}
+</pre></td></tr></table></figure>
+
+<p>Let&#39;s have a look at what happens in <code>render()</code>.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre><span class="keyword">int</span> MidiFile::render() {
+    ...
+    <span class="keyword">while</span>(<span class="number">1</span>) {
+    ...
+        <span class="keyword">while</span> (!mRender && !mExit)
+        {
+            ALOGV(<span class="string">"MidiFile::render - signal wait"</span>);
+*            mCondition.wait(mMutex);  <span class="comment">// wait request here.</span>
+            ALOGV(<span class="string">"MidiFile::render - signal rx'd"</span>);
+        }
+        ...
+*        EAS_State(mEasData, mEasHandle, &mState);  <span class="comment">// state changed here</span>
+        mMutex.unlock();
+
+        <span class="comment">// create audio output track if necessary</span>
+        <span class="keyword">if</span> (!mAudioSink-&gt;ready()) {
+*            ALOGV(<span class="string">"MidiFile::render - create output track"</span>);
+        ...
+}
+</pre></td></tr></table></figure>
+
+<p>Recheck ths log, we can see thread already been wakeup, at the same time, <code>isPlaying()</code> request came.</p>
+<p>It seems that state changed calling is after <code>isPlaying()</code>.</p>
+<p>There is a concurrency problem here, <code>isPlaying()</code> calling might get wrong state, before it changes to right value.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::render - signal rx'd</span>
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::isPlaying, mState=0</span>
+01-01 20:05:16.337 V/MidiFile( 2832): MidiFile<span class="comment">::render - create output track</span>
+</pre></td></tr></table></figure>
+
+<h3 id="how-to-fix-it-">How to fix it?</h3>
+<p>This bug seem deep rooted in binary library, you can&#39;t fix this in all Android devices.
+However, a small delay can be used as a workaround to avoid this <strong>concurrency problem</strong>.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>      Ringtone ringtone = RingtoneManager.getRingtone(mContext, midiUri);
+      Thread.sleep(<span class="number">100</span>); <span class="comment">// add some delay to workaround this problem.</span>
+      ringtone.play();
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer>
+    
+      
+  
+  <div class="categories">
+    <a href="/categories/Tech/">Tech</a>
+  </div>
+
+      
+  
+  <div class="tags">
+    <a href="/tags/android/">android</a>, <a href="/tags/java/">java</a>, <a href="/tags/multimedia/">multimedia</a>
+  </div>
+
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+  <div class="ds-thread" data-title="[Android] wrong playback state when playing MIDI as Ringtone">
+  </div>
+</section>
+</div>
+  </div>
+  <div class="widget-wrapper">
+    <aside id="sidebar">
+  
+  
+    
+      
+      
+
+<div class="widget tag first">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Reading/">Reading</a><small>5</small></li>
+  
+    <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
+  
+    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>6</small></li>
+  
+    <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
+  
+    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+  
+    <li><a href="/tags/django/">django</a><small>1</small></li>
+  
+    <li><a href="/tags/java/">java</a><small>6</small></li>
+  
+    <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
+  
+    <li><a href="/tags/lighttpd/">lighttpd</a><small>1</small></li>
+  
+    <li><a href="/tags/mail/">mail</a><small>1</small></li>
+  
+    <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
+  
+    <li><a href="/tags/python/">python</a><small>11</small></li>
+  
+    <li><a href="/tags/script/">script</a><small>5</small></li>
+  
+    <li><a href="/tags/vim/">vim</a><small>1</small></li>
+  
+    <li><a href="/tags/web/">web</a><small>4</small></li>
+  
+    <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
+  
+  </ul>
+</div>
+
+    
+      
+      
+
+<div class="widget tagcloud">
+  <h3 class="title">标签云</h3>
+  <div class="entry">
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
+  </div>
+</div>
+
+    
+  
+</aside>
+<div class="clearfix"></div>
+  </div>
+  <footer id="footer"><div class="copyright">
+  
+  &copy; 2015 <a href="/">oneyoung</a>
+  
+</div>
+<div class="theme-copyright">
+  Theme by <a href="https://github.com/orderedlist" target="_blank">orderedlist</a>
+   | 
+  Redesign by <a href="http://heroicyang.com/" target="_blank">Heroic Yang</a>
+</div>
+<div class="clearfix"></div></footer>
+  <script src="/js/scale.fix.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = { short_name: 'oneyoung' };
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';
+    ds.async = true;
+    ds.src = 'http://static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+  (function($){
+    $('.fancybox').fancybox();
+  })(jQuery);
+</script>
+
+</body>
+</html>

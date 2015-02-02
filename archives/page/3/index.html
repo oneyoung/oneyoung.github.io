@@ -67,6 +67,67 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2014-04-15T23:49:57.000Z"><a href="/2014/04/16/[读书笔记]经验的疆界/">2014-04-16</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/04/16/[读书笔记]经验的疆界/">[读书笔记]经验的疆界</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p><a href="http://book.douban.com/subject/6687032/" target="_blank">http://book.douban.com/subject/6687032/</a></p>
+<blockquote>
+<p>本书论点: 个人和组织尽管渴望从经验中获得智慧, 但是从经验当中作出的推断往往具有误导性.</p>
+</blockquote>
+<h3 id="-1-">第1章  追求智慧</h3>
+<ul>
+<li><p>体验式学习: 人类通过体验式学习来掌控生活 -- 为了改变命运, 个人和组织尝试从经验中学习.</p>
+</li>
+<li><p>提高与环境匹配度--&gt; 更好的生存下去:</p>
+<ul>
+<li>适应环境</li>
+<li>改变环境: 适应是弱者的事情, 强者制定游戏规则, 让别人适应自己. --&gt; 有可能导致适应力衰退(强者也有必须适应环境的时候)</li>
+</ul>
+</li>
+<li><p>智慧的两个要素:</p>
+<ul>
+<li>有效的<strong>适应环境</strong></li>
+<li>优雅的<strong>诠释经验</strong></li>
+</ul>
+</li>
+<li><p>从经验中获取智慧可以分成2种模式:</p>
+<ul>
+<li>&quot;低智(low-intellect)&quot; 学习: 在<em>不求理解因果结构</em>的情况下, <em>复制</em>与成功相连的行动.</li>
+<li>&quot;高智(high-intellect)&quot; 学习: 努力<em>理解因果结构</em>, 并用其指导以后的行动.</li>
+<li>高智和低智学习<em>没有优劣之分</em>, 各有可取之处, 各有局限性.</li>
+</ul>
+</li>
+</ul>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/04/16/[读书笔记]经验的疆界/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2014-03-29T10:08:39.000Z"><a href="/2014/03/29/[读书笔记]自卑与超越/">2014-03-29</a></time>
     
     
@@ -265,53 +326,6 @@ tar -xvf dropbox.tar.gz
 
 
   
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-12-17T22:58:11.000Z"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">2013-12-18</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">bash: vim 自动补全文件名卡住</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>本来home目录下的.bashrc用一个git维护着. 今天手贱, 在另一个目录下, 以为存在git, 直接git reset, 然后就悲剧了, home下面有些配置直接被干掉了 T.T</p>
-<p>然后就出现各种问题了, 发现bash中输入vim + TAB 之后就卡住了, 只能ctrl + C取消掉, 记得之前搞过, google了一通, 终于把它捞出来了.</p>
-<p>好像是bash-completion的问题 (REF: <a href="https://bbs.archlinux.org/viewtopic.php?id=115604" target="_blank">link</a> )</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre>$ pacman -Ss bash-completion
-extra/bash-completion <span class="number">2.1</span>-<span class="number">2</span> [installed]
-</pre></td></tr></table></figure>
-
-<p>运行一下下面这个就搞定了, 目测gvim, emacs也中枪. 可以加在.bashrc里.</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>complete <span class="attribute">-f</span> <span class="attribute">-X</span> <span class="string">'*.@(o|so|so.!(conf)|a|rpm|gif|GIF|jp?(e)g|JP?(E)G|mp3|MP3|mp?(e)g|MPG|avi|AVI|asf|ASF|ogg|OGG|class|CLASS)'</span> vi vim gvim rvim view rview rgvim rgview gview emacs xemacs sxemacs kate kwrite
-</pre></td></tr></table></figure>
-
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/12/18/bash:-vim-自动补全文件名卡住/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
 
   <nav id="pagination">
   
@@ -341,7 +355,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>20</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
   
   </ul>
 </div>
@@ -356,7 +370,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
   
-    <li><a href="/tags/android/">android</a><small>5</small></li>
+    <li><a href="/tags/android/">android</a><small>6</small></li>
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
@@ -364,7 +378,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
-    <li><a href="/tags/java/">java</a><small>5</small></li>
+    <li><a href="/tags/java/">java</a><small>6</small></li>
   
     <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
   
@@ -372,7 +386,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/mail/">mail</a><small>1</small></li>
   
-    <li><a href="/tags/multimedia/">multimedia</a><small>3</small></li>
+    <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
     <li><a href="/tags/python/">python</a><small>11</small></li>
   
@@ -394,7 +408,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 18.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
   </div>
 </div>
 

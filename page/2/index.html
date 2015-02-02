@@ -63,6 +63,55 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2014-12-17T01:49:20.000Z"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">[Android] Bypass SSL cert check when connecting to localhost through HTTPS</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>最近需要用HTTPS连接到localhost做一些测试，但是发现一个SSL证书的问题， 用Android的MediaPlayer播放Https内容的时候总是失败在SSL连接握手阶段，应该是localhost证书非法，验证不了，直接导致MediaPlayer拒绝连接。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+</pre></td><td class="code"><pre><span class="label">javax.net.ssl.SSLProtocolException:</span> SSL handshake terminated: ssl=<span class="number">0xef44d200</span>: Failure <span class="keyword">in</span> SSL library, usually a protocol error
+<span class="label">error:</span><span class="number">14094416</span>:SSL routines:SSL3_READ_BYTES:sslv3 alert certificate unknown (external/openssl/ssl/s3_pkt<span class="preprocessor">.c</span>:<span class="number">1286</span> <span class="number">0xef40c640</span>:<span class="number">0x00000003</span>)
+</pre></td></tr></table></figure>
+
+<h3 id="level-of-security">Level of Security</h3>
+<p>对于连接的安全级别，可以分为下列3个级别：</p>
+<ul>
+<li>Level A – no encryption, no verification</li>
+<li>Level B – encryption, no verification</li>
+<li>Level C – encryption and verification</li>
+</ul>
+<p>Level A 就是相当于http连接，没有任何保护；而Level C就相当于https连接，连接加密且验证连接方。</p>
+<p>而对于媒体播放的需求其实更接近于是Level B，只需要传输数据加密，不让别人知道自己看过什么，而对播放源验证不会有那么严格的要求。</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+
+  <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2014-04-30T08:33:10.000Z"><a href="/2014/04/30/[linux]-no-protocol-specified/">2014-04-30</a></time>
     
     
@@ -265,67 +314,6 @@ No protocol specified
 
 
 
-  <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2014-04-15T23:49:57.000Z"><a href="/2014/04/16/[读书笔记]经验的疆界/">2014-04-16</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2014/04/16/[读书笔记]经验的疆界/">[读书笔记]经验的疆界</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p><a href="http://book.douban.com/subject/6687032/" target="_blank">http://book.douban.com/subject/6687032/</a></p>
-<blockquote>
-<p>本书论点: 个人和组织尽管渴望从经验中获得智慧, 但是从经验当中作出的推断往往具有误导性.</p>
-</blockquote>
-<h3 id="-1-">第1章  追求智慧</h3>
-<ul>
-<li><p>体验式学习: 人类通过体验式学习来掌控生活 -- 为了改变命运, 个人和组织尝试从经验中学习.</p>
-</li>
-<li><p>提高与环境匹配度--&gt; 更好的生存下去:</p>
-<ul>
-<li>适应环境</li>
-<li>改变环境: 适应是弱者的事情, 强者制定游戏规则, 让别人适应自己. --&gt; 有可能导致适应力衰退(强者也有必须适应环境的时候)</li>
-</ul>
-</li>
-<li><p>智慧的两个要素:</p>
-<ul>
-<li>有效的<strong>适应环境</strong></li>
-<li>优雅的<strong>诠释经验</strong></li>
-</ul>
-</li>
-<li><p>从经验中获取智慧可以分成2种模式:</p>
-<ul>
-<li>&quot;低智(low-intellect)&quot; 学习: 在<em>不求理解因果结构</em>的情况下, <em>复制</em>与成功相连的行动.</li>
-<li>&quot;高智(high-intellect)&quot; 学习: 努力<em>理解因果结构</em>, 并用其指导以后的行动.</li>
-<li>高智和低智学习<em>没有优劣之分</em>, 各有可取之处, 各有局限性.</li>
-</ul>
-</li>
-</ul>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2014/04/16/[读书笔记]经验的疆界/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-
 
 <nav id="pagination">
   
@@ -353,7 +341,7 @@ No protocol specified
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>20</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
   
   </ul>
 </div>
@@ -368,7 +356,7 @@ No protocol specified
   
     <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
   
-    <li><a href="/tags/android/">android</a><small>5</small></li>
+    <li><a href="/tags/android/">android</a><small>6</small></li>
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
@@ -376,7 +364,7 @@ No protocol specified
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
-    <li><a href="/tags/java/">java</a><small>5</small></li>
+    <li><a href="/tags/java/">java</a><small>6</small></li>
   
     <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
   
@@ -384,7 +372,7 @@ No protocol specified
   
     <li><a href="/tags/mail/">mail</a><small>1</small></li>
   
-    <li><a href="/tags/multimedia/">multimedia</a><small>3</small></li>
+    <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
     <li><a href="/tags/python/">python</a><small>11</small></li>
   
@@ -406,7 +394,7 @@ No protocol specified
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 18.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
   </div>
 </div>
 

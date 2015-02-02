@@ -67,6 +67,55 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2015-02-02T08:18:53.000Z"><a href="/2015/02/02/wrong-playback-state-when-playing-midi-as-ringtone/">2015-02-02</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2015/02/02/wrong-playback-state-when-playing-midi-as-ringtone/">[Android] wrong playback state when playing MIDI as Ringtone</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <h3 id="the-problem">The Problem</h3>
+<ol>
+<li>play a MIDI file as Ringtone.</li>
+<li>check whether <code>.isPlaying()</code> after <code>.play()</code></li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>      Uri midiUri = Uri.parse( <span class="string">"/sdcard/some/path/to/example.midi"</span>);
+      Ringtone ringtone = RingtoneManager.getRingtone(mContext, midiUri);
+      ringtone.play();
+      assertTrue(<span class="string">"Couldn't play ringtone "</span> + midiUri, ringtone.isPlaying());
+</pre></td></tr></table></figure>
+
+<p>The problems is that the last line always fails.</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2015/02/02/wrong-playback-state-when-playing-midi-as-ringtone/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2015-01-04T07:14:39.000Z"><a href="/2015/01/04/camera-callback-not-be-invoked/">2015-01-04</a></time>
     
     
@@ -295,7 +344,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>20</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
   
   </ul>
 </div>
@@ -310,7 +359,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
   
     <li><a href="/tags/algrithms/">algrithms</a><small>2</small></li>
   
-    <li><a href="/tags/android/">android</a><small>5</small></li>
+    <li><a href="/tags/android/">android</a><small>6</small></li>
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
@@ -318,7 +367,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
-    <li><a href="/tags/java/">java</a><small>5</small></li>
+    <li><a href="/tags/java/">java</a><small>6</small></li>
   
     <li><a href="/tags/kernel/">kernel</a><small>1</small></li>
   
@@ -326,7 +375,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
   
     <li><a href="/tags/mail/">mail</a><small>1</small></li>
   
-    <li><a href="/tags/multimedia/">multimedia</a><small>3</small></li>
+    <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
     <li><a href="/tags/python/">python</a><small>11</small></li>
   
@@ -348,7 +397,7 @@ Do not set audio routing directly, use setSpeakerphoneOn(), setBluetoothScoOn() 
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 12.00px;">algrithms</a><a href="/tags/android/" style="font-size: 18.00px;">android</a><a href="/tags/archlinux/" style="font-size: 14.00px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.00px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.00px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 18.00px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 16.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 16.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
   </div>
 </div>
 

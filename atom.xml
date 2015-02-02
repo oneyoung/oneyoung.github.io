@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-02-02T06:39:06.950Z</updated>
+  <updated>2015-02-02T08:23:34.813Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -13,6 +13,386 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[[Android] wrong playback state when playing MIDI as Ringtone]]></title>
+    <link href="http://oneyoung.im/2015/02/02/wrong-playback-state-when-playing-midi-as-ringtone/"/>
+    <id>http://oneyoung.im/2015/02/02/wrong-playback-state-when-playing-midi-as-ringtone/</id>
+    <published>2015-02-02T08:18:53.000Z</published>
+    <updated>2015-02-02T08:23:32.000Z</updated>
+    <content type="html"><![CDATA[<h3 id="the-problem">The Problem</h3>
+<ol>
+<li>play a MIDI file as Ringtone.</li>
+<li>check whether <code>.isPlaying()</code> after <code>.play()</code></li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>      Uri midiUri = Uri.parse( <span class="string">"/sdcard/some/path/to/example.midi"</span>);
+      Ringtone ringtone = RingtoneManager.getRingtone(mContext, midiUri);
+      ringtone.play();
+      assertTrue(<span class="string">"Couldn't play ringtone "</span> + midiUri, ringtone.isPlaying());
+</pre></td></tr></table></figure>
+
+<p>The problems is that the last line always fails.</p>
+<a id="more"></a>
+
+<h3 id="how-ringtone-is-played-">How Ringtone is played?</h3>
+<p><em>Playing Ringtone in Android is nothing special than play a &quot;.mp3&quot; files.</em></p>
+<p>when invoking <code>RingtoneManager.getRingtone()</code> it actually create a <code>Ringtone()</code> instance, and call <code>.setUri()</code></p>
+<blockquote>
+<p>frameworks/base/media/java/android/media/RingtoneManager.java</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="keyword">static</span> Ringtone <span class="title">getRingtone</span>(<span class="keyword">final</span> Context context, Uri ringtoneUri) {
+        <span class="comment">// Don't set the stream type</span>
+        <span class="keyword">return</span> getRingtone(context, ringtoneUri, -<span class="number">1</span>);
+    }
+
+    <span class="keyword">private</span> <span class="keyword">static</span> Ringtone <span class="title">getRingtone</span>(<span class="keyword">final</span> Context context, Uri ringtoneUri, <span class="keyword">int</span> streamType) {
+...
+            <span class="keyword">final</span> Ringtone r = <span class="keyword">new</span> Ringtone(context, <span class="keyword">true</span>);
+            <span class="keyword">if</span> (streamType &gt;= <span class="number">0</span>) {
+                r.setStreamType(streamType);
+            }
+            r.setUri(ringtoneUri);
+            <span class="keyword">return</span> r;
+    }
+</pre></td></tr></table></figure>
+
+<p><code>Ringtone</code> class actually use <code>MediaPlayer</code> to play ringtone.</p>
+<blockquote>
+<p>frameworks/base/media/java/android/media/Ringtone.java</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre>    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setUri</span>(Uri uri) {
+    ...
+        mLocalPlayer = <span class="keyword">new</span> MediaPlayer();
+        ...
+            mLocalPlayer.setDataSource(mContext, mUri);
+            mLocalPlayer.setAudioAttributes(mAudioAttributes);
+            mLocalPlayer.prepare();
+        ...
+    }
+</pre></td></tr></table></figure>
+
+<h3 id="how-mediaplayer-handles-midi-file-">How MediaPlayer handles MIDI file?</h3>
+<p>The underlying Java, Android will allocate different player for different media types.</p>
+<blockquote>
+<p>frameworks/av/media/libmediaplayerservice/MediaPlayerFactory.cpp</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+</pre></td><td class="code"><pre><span class="keyword">class</span> SonivoxPlayerFactory : <span class="keyword">public</span> MediaPlayerFactory::IFactory {
+  <span class="keyword">public</span>:
+    <span class="keyword">virtual</span> <span class="keyword">float</span> scoreFactory(<span class="keyword">const</span> sp&lt;IMediaPlayer&gt;& <span class="comment">/*client*/</span>, ...) {
+        <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">char</span>* <span class="keyword">const</span> FILE_EXTS[] = { <span class="string">".mid"</span>,
+                                                 <span class="string">".midi"</span>,
+                                                 <span class="string">".smf"</span>,
+                                                 <span class="string">".xmf"</span>,
+                                                 <span class="string">".mxmf"</span>,
+                                                 <span class="string">".imy"</span>,
+                                                 <span class="string">".rtttl"</span>,
+                                                 <span class="string">".rtx"</span>,
+                                                 <span class="string">".ota"</span> };
+    ....
+    <span class="keyword">virtual</span> sp&lt;MediaPlayerBase&gt; createPlayer() {
+        ALOGV(<span class="string">" create MidiFile"</span>);
+        <span class="keyword">return</span> <span class="keyword">new</span> MidiFile();
+    }
+}
+</pre></td></tr></table></figure>
+
+<p>You can see that if file extension is &quot;midi&quot;, it will use <code>MidiFile()</code> as the real MediaPlayer.</p>
+<h4 id="what-is-midifile-">What is <code>MidiFile</code>?</h4>
+<p>Actually the cpp class <code>MidiFile</code> is just a wrapper for libsonivox, making it compatiable for <code>MediaPlayerBase</code></p>
+<blockquote>
+<p>frameworks/av/media/libmediaplayerservice/MifiFile.cpp</p>
+</blockquote>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="code"><pre>  ▼ MidiFile* : <span class="keyword">class</span>
+      [functions]
+      MidiFile()
+      setDataSource( <span class="keyword">const</span> sp&lt;IMediaHTTPService&gt; & , <span class="keyword">const</span> <span class="built_in">char</span>* path, <span class="keyword">const</span> KeyedVector&lt;String8, String8&gt; *)
+      setDataSource(<span class="keyword">int</span> fd, int64_t offset, int64_t length)
+      prepare()
+      prepareAsync()
+      start()
+      stop()
+      seekTo(<span class="keyword">int</span> position)
+      pause()
+      isPlaying()
+      getCurrentPosition(<span class="keyword">int</span>* position)
+      getDuration(<span class="keyword">int</span>* duration)
+      release()
+      reset()
+</pre></td></tr></table></figure>
+
+<p>Note that it also implement the interface <code>isPlaying()</code>.</p>
+<h4 id="how-it-check-isplaying-">How it check <code>isPlaying()</code>?</h4>
+<p>It use a state called <code>EAS_STATE_PLAY</code> which defined in libsonvix. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre><span class="keyword">bool</span> MidiFile::isPlaying()
+{
+    ALOGV(<span class="string">"MidiFile::isPlaying, mState=%d"</span>, <span class="keyword">int</span>(mState));
+    <span class="keyword">if</span> (!mEasHandle || mPaused) <span class="keyword">return</span> <span class="keyword">false</span>;
+    <span class="keyword">return</span> (mState == EAS_STATE_PLAY);
+}
+</pre></td></tr></table></figure>
+
+<h3 id="let-s-see-the-log">Let&#39;s see the log</h3>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::setLooping</span>
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::start</span>
+01-01 20:05:16.335 V/MidiFile( 2832):   wakeup render thread
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::render - signal rx'd</span>
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::isPlaying, mState=0</span>
+* 01-01 20:05:16.336 E/MediaPlayer( 5515): internal/external state mismatch corrected
+01-01 20:05:16.337 V/MidiFile( 2832): MidiFile<span class="comment">::render - create output track</span>
+</pre></td></tr></table></figure>
+
+<p><em>line 5</em>, it print that the <code>mState=0</code>, which means <code>EAS_STATE_READY</code>.</p>
+<blockquote>
+<p><code>external/sonivox/arm-fm-22k/host_src/eas_types.h</code></p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre><span class="comment">/* EAS_STATE return codes */</span>
+<span class="keyword">typedef</span> <span class="keyword">enum</span>
+{
+    EAS_STATE_READY = <span class="number">0</span>,
+    EAS_STATE_PLAY,
+    EAS_STATE_STOPPING,
+    EAS_STATE_PAUSING,
+    ...
+} E_EAS_STATE;
+</pre></td></tr></table></figure>
+
+<p>That is to say, MediaPlayer still stay in &quot;Ready&quot; state after <code>.start()</code>. It&#39;s a <strong>state mismatch</strong>, <em>line 6</em> also print this error.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre><span class="number">01</span>-<span class="number">01</span> <span class="number">20</span>:<span class="number">05</span>:<span class="number">16.336</span> E/MediaPlayer( <span class="number">5515</span>): <span class="keyword">internal</span>/external state mismatch corrected
+</pre></td></tr></table></figure>
+
+<blockquote>
+<p>frameworks/av/media/libmedia/mediaplayer.cpp</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre></td><td class="code"><pre><span class="keyword">bool</span> MediaPlayer::isPlaying()
+{
+    ...
+    <span class="keyword">if</span> (mPlayer != <span class="number">0</span>) {
+        <span class="keyword">bool</span> temp = <span class="keyword">false</span>;
+        mPlayer-&gt;isPlaying(&temp);
+        <span class="keyword">if</span> ((mCurrentState & MEDIA_PLAYER_STARTED) && ! temp) {
+*            ALOGE(<span class="string">"internal/external state mismatch corrected"</span>);
+            mCurrentState = MEDIA_PLAYER_PAUSED;
+        }
+        <span class="keyword">return</span> temp;
+    }
+...
+}
+</pre></td></tr></table></figure>
+
+<h3 id="how-the-state-mismatch-happens-">How the state mismatch happens?</h3>
+<p>In <code>MidiFile::start()</code>, it actually set <code>mState</code> here, instead, it try to wakeup a thread call <code>render</code>. The real stuff is handled there.</p>
+<blockquote>
+<p>frameworks/av/media/libmediaplayerservice/MifiFile.cpp</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre>status_t MidiFile::start()
+{
+    ALOGV(<span class="string">"MidiFile::start"</span>);
+    ...
+    <span class="comment">// wake up render thread</span>
+    ALOGV(<span class="string">"  wakeup render thread"</span>);
+    mCondition.signal();
+    <span class="keyword">return</span> NO_ERROR;
+}
+</pre></td></tr></table></figure>
+
+<p>Let&#39;s have a look at what happens in <code>render()</code>.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre><span class="keyword">int</span> MidiFile::render() {
+    ...
+    <span class="keyword">while</span>(<span class="number">1</span>) {
+    ...
+        <span class="keyword">while</span> (!mRender && !mExit)
+        {
+            ALOGV(<span class="string">"MidiFile::render - signal wait"</span>);
+*            mCondition.wait(mMutex);  <span class="comment">// wait request here.</span>
+            ALOGV(<span class="string">"MidiFile::render - signal rx'd"</span>);
+        }
+        ...
+*        EAS_State(mEasData, mEasHandle, &mState);  <span class="comment">// state changed here</span>
+        mMutex.unlock();
+
+        <span class="comment">// create audio output track if necessary</span>
+        <span class="keyword">if</span> (!mAudioSink-&gt;ready()) {
+*            ALOGV(<span class="string">"MidiFile::render - create output track"</span>);
+        ...
+}
+</pre></td></tr></table></figure>
+
+<p>Recheck ths log, we can see thread already been wakeup, at the same time, <code>isPlaying()</code> request came.</p>
+<p>It seems that state changed calling is after <code>isPlaying()</code>.</p>
+<p>There is a concurrency problem here, <code>isPlaying()</code> calling might get wrong state, before it changes to right value.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::render - signal rx'd</span>
+01-01 20:05:16.335 V/MidiFile( 2832): MidiFile<span class="comment">::isPlaying, mState=0</span>
+01-01 20:05:16.337 V/MidiFile( 2832): MidiFile<span class="comment">::render - create output track</span>
+</pre></td></tr></table></figure>
+
+<h3 id="how-to-fix-it-">How to fix it?</h3>
+<p>This bug seem deep rooted in binary library, you can&#39;t fix this in all Android devices.
+However, a small delay can be used as a workaround to avoid this <strong>concurrency problem</strong>.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+</pre></td><td class="code"><pre>      Ringtone ringtone = RingtoneManager.getRingtone(mContext, midiUri);
+      Thread.sleep(<span class="number">100</span>); <span class="comment">// add some delay to workaround this problem.</span>
+      ringtone.play();
+</pre></td></tr></table></figure>
+
+]]></content>
+    <summary type="html"><![CDATA[<h3 id="the-problem">The Problem</h3>
+<ol>
+<li>play a MIDI file as Ringtone.</li>
+<li>check whether <code>.isPlaying()</code> after <code>.play()</code></li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+</pre></td><td class="code"><pre>      Uri midiUri = Uri.parse( <span class="string">"/sdcard/some/path/to/example.midi"</span>);
+      Ringtone ringtone = RingtoneManager.getRingtone(mContext, midiUri);
+      ringtone.play();
+      assertTrue(<span class="string">"Couldn't play ringtone "</span> + midiUri, ringtone.isPlaying());
+</pre></td></tr></table></figure>
+
+<p>The problems is that the last line always fails.</p>
+]]></summary>
+    
+      <category term="android" scheme="http://oneyoung.im/tags/android/"/>
+    
+      <category term="java" scheme="http://oneyoung.im/tags/java/"/>
+    
+      <category term="multimedia" scheme="http://oneyoung.im/tags/multimedia/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[[Java] Catch Thread Exception]]></title>
@@ -4170,154 +4550,6 @@ Garbage:[]
 ]]></summary>
     
       <category term="python" scheme="http://oneyoung.im/tags/python/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[new-style class in Python2]]></title>
-    <link href="http://oneyoung.im/2013/08/21/new-style-class-in-Python2/"/>
-    <id>http://oneyoung.im/2013/08/21/new-style-class-in-Python2/</id>
-    <published>2013-08-21T00:59:19.000Z</published>
-    <updated>2013-11-14T01:03:10.000Z</updated>
-    <content type="html"><![CDATA[<p>Definition of <code>new-style class</code> in python</p>
-<blockquote>
-<p><em><a href="http://docs.python.org/2/glossary.html#term-new-style-class" target="_blank">new-style class</a></em>
-Any class which inherits from object. This includes all built-in types like list and dict. Only new-style classes can use Python’s newer, versatile features like <code>__slots__</code>, descriptors, properties, and <code>__getattribute__()</code>.</p>
-</blockquote>
-<p>简单来说, <em>new-style class</em> 就是继承与<code>object</code>基类的class. 来看一个例子:</p>
-<a id="more"></a>
-
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-</pre></td><td class="code"><pre>&gt;&gt;&gt; class A: pass
-... 
-&gt;&gt;&gt; 
-&gt;&gt;&gt; class B(object): pass
-... 
-&gt;&gt;&gt; 
-&gt;&gt;&gt; type(A)
-&lt;type 'classobj'&gt;
-&gt;&gt;&gt; type(B)
-&lt;type 'type'&gt;
-&gt;&gt;&gt; isinstance(A, type)
-False
-&gt;&gt;&gt; isinstance(B, type)
-True
-
-&gt;&gt;&gt; dir(A)
-['__doc__', '__module__']
-&gt;&gt;&gt; dir(B)
-['__class__', '__delattr__', '__dict__', '__doc__', '__format__', '__getattribu
-te__', '__hash__', '__init__', '__module__', '__new__', '__reduce__', '__reduce
-_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__',
- '__weakref__']
-</pre></td></tr></table></figure>
-
-<p>可以看出来classic-style A的type是<code>classobj</code>, 而new-style B的type是object. 先比于classic-style, new-style 的class支持更多bulitin的操作.</p>
-<p>再来看看它们的instance. <code>a</code>是<code>instance</code>, 而<code>b</code>是<code>object</code>.</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-</pre></td><td class="code"><pre>&gt;&gt;&gt; a = <span class="type">A</span>()
-&gt;&gt;&gt; a.__class__()
-&lt;__main__.<span class="type">A</span> <span class="keyword">instance</span> at <span class="number">0x24107a0</span>&gt;
-&gt;&gt;&gt; <span class="typedef"><span class="keyword">type</span><span class="container">(<span class="title">a</span>)</span></span>
-&lt;<span class="typedef"><span class="keyword">type</span> 'instance'&gt;</span>
-&gt;&gt;&gt; b= <span class="type">B</span>()
-&gt;&gt;&gt; b.__class__()
-&lt;__main__.<span class="type">B</span> object at <span class="number">0x7f937fb5a410</span>&gt;
-&gt;&gt;&gt; <span class="typedef"><span class="keyword">type</span><span class="container">(<span class="title">b</span>)</span></span>
-&lt;<span class="keyword">class</span> '__main__.<span class="type">B'</span>&gt;
-</pre></td></tr></table></figure>
-
-<p>值得注意的是<code>super()</code>只支持new-style class, 所以, 用于classic-style class 就会raise Type Error</p>
-<blockquote>
-<p>Note super() only works for new-style classes.</p>
-</blockquote>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span><span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(A)</span>:</span>
-<span class="prompt">... </span>    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span>
-<span class="prompt">... </span>        super(C, self).__init__()
-<span class="prompt">... </span>        
-<span class="prompt">... </span>    
-<span class="prompt">... </span>
-<span class="prompt">&gt;&gt;&gt; </span>c = C()
-Traceback (most recent call last):
-  File <span class="string">"&lt;input&gt;"</span>, line <span class="number">1</span>, <span class="keyword">in</span> &lt;module&gt;
-    File <span class="string">"&lt;input&gt;"</span>, line <span class="number">3</span>, <span class="keyword">in</span> __init__
-	TypeError: must be type, <span class="keyword">not</span> classobj
-
-<span class="prompt">&gt;&gt;&gt; </span><span class="class"><span class="keyword">class</span> <span class="title">D</span><span class="params">(B)</span>:</span>
-<span class="prompt">... </span>    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span>
-<span class="prompt">... </span>        super(D, self).__init__()
-<span class="prompt">... </span>        
-<span class="prompt">... </span>    
-<span class="prompt">... </span>
-<span class="prompt">&gt;&gt;&gt; </span>d = D()
-&gt;&gt;&gt;
-</pre></td></tr></table></figure>
-
-<h4 id="ref">Ref</h4>
-<p><a href="http://docs.python.org/2/reference/datamodel.html" target="_blank">python doc</a></p>
-<p><a href="http://stackoverflow.com/questions/9698614/super-raises-typeerror-must-be-type-not-classobj-for-new-style-class" target="_blank">stackoverflow</a></p>
-]]></content>
-    <summary type="html"><![CDATA[<p>Definition of <code>new-style class</code> in python</p>
-<blockquote>
-<p><em><a href="http://docs.python.org/2/glossary.html#term-new-style-class" target="_blank">new-style class</a></em>
-Any class which inherits from object. This includes all built-in types like list and dict. Only new-style classes can use Python’s newer, versatile features like <code>__slots__</code>, descriptors, properties, and <code>__getattribute__()</code>.</p>
-</blockquote>
-<p>简单来说, <em>new-style class</em> 就是继承与<code>object</code>基类的class. 来看一个例子:</p>
-]]></summary>
-    
-      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
-    
-      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
     
   </entry>
   
