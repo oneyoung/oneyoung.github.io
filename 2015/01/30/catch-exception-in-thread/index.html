@@ -163,12 +163,13 @@ Even you use <code>ExecutorService</code>, the compiler still complain that Exce
     <span class="keyword">final</span> ExecutorService executor = Executors.newSingleThreadExecutor();
     <span class="keyword">final</span> Future&lt;Integer&gt; future = executor.submit(callable);
     <span class="keyword">try</span> {
-        future.get();
+        future.get();  <span class="comment">// Exception might happen.</span>
     } <span class="keyword">finally</span> {
         executor.shutdown();
     }
 </pre></td></tr></table></figure>
 
+<p>If any Exception happens, it will throw once we call <code>Future.get()</code>, for more refer to (this)[<a href="http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html#get(" target="_blank">http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html#get(</a>)].</p>
 <ul>
 <li>Pro: can throws Exception as usual.</li>
 <li>Con:<ul>

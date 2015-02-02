@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-01-30T09:08:11.704Z</updated>
+  <updated>2015-02-02T06:39:06.950Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -19,7 +19,7 @@
     <link href="http://oneyoung.im/2015/01/30/catch-exception-in-thread/"/>
     <id>http://oneyoung.im/2015/01/30/catch-exception-in-thread/</id>
     <published>2015-01-30T08:57:25.000Z</published>
-    <updated>2015-01-30T09:08:05.000Z</updated>
+    <updated>2015-02-02T06:38:20.000Z</updated>
     <content type="html"><![CDATA[<p>Java has a annoying feature that if any Exception happens, you must report it as <code>throws XXXException</code>.</p>
 <p>If you want to run something in a Thread, but still want to catch Exception <strong>outside</strong> that Thread.</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre>1
@@ -110,12 +110,13 @@ Even you use <code>ExecutorService</code>, the compiler still complain that Exce
     <span class="keyword">final</span> ExecutorService executor = Executors.newSingleThreadExecutor();
     <span class="keyword">final</span> Future&lt;Integer&gt; future = executor.submit(callable);
     <span class="keyword">try</span> {
-        future.get();
+        future.get();  <span class="comment">// Exception might happen.</span>
     } <span class="keyword">finally</span> {
         executor.shutdown();
     }
 </pre></td></tr></table></figure>
 
+<p>If any Exception happens, it will throw once we call <code>Future.get()</code>, for more refer to (this)[<a href="http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html#get(" target="_blank">http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html#get(</a>)].</p>
 <ul>
 <li>Pro: can throws Exception as usual.</li>
 <li>Con:<ul>
