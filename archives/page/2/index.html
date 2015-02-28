@@ -67,6 +67,59 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2014-12-17T03:22:25.000Z"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">2014-12-17</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/">[Android] The Story of MediaPlayer.setDataSource [Part.1]</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>Android <code>MediaPlayer</code> is a big class for all purpose media type playing, including local file and streaming playing.</p>
+<p>The story start from <code>MediaPlayer.setDataSource</code>.</p>
+<h2 id="-android-media-package"><code>android.media</code> package</h2>
+<p><code>android.media</code> package locates in <code>frameworks/base/media</code>, and it&#39;s Java source is <code>java/android/media</code>.</p>
+<p>This package provide various of interface for media playing/recording/decoding etc, including the <code>MediaPlayer</code> we are going to talk about today.</p>
+<h3 id="-mediaplayer-setdatasource-"><code>MediaPlayer.setDataSource()</code></h3>
+<p>I would not talk much about <code>MediaPlayer</code> constrution, the part we are insterested is what happens after calling <code>setDataSource()</code></p>
+<p>From <a href="http://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank">developer.android</a>, MediaPlayer provide 4 types of method reloading for <code>setDataSource</code>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="literal">void</span> setDataSource(<span class="built_in">String</span> path)
+<span class="literal">void</span> setDataSource(Context context, Uri uri, <span class="built_in">Map</span><span class="subst">&lt;</span><span class="built_in">String</span>, <span class="built_in">String</span><span class="subst">&gt;</span> headers)
+<span class="literal">void</span> setDataSource(Context context, Uri uri)
+<span class="literal">void</span> setDataSource(FileDescriptor fd, long offset, long length)
+<span class="literal">void</span> setDataSource(FileDescriptor fd)
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2014/12/17/the-story-of-mediaplayersetdatasource-[part1]/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2014-12-17T01:49:20.000Z"><a href="/2014/12/17/bypass-ssl-cert-check-when-connecting-to-localhost-through-https/">2014-12-17</a></time>
     
     
@@ -261,63 +314,6 @@ No protocol specified
 
 
   
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2014-04-20T08:06:59.000Z"><a href="/2014/04/20/[读书笔记]沃顿商学院最受欢迎的谈判课/">2014-04-20</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2014/04/20/[读书笔记]沃顿商学院最受欢迎的谈判课/">[读书笔记]沃顿商学院最受欢迎的谈判课</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p><a href="http://book.douban.com/subject/11589950/" target="_blank">http://book.douban.com/subject/11589950/</a></p>
-<blockquote>
-<p>吐嘈一下, 翻译过来的书名已经吐嘈无力了, 说说内容吧, 这本书注水太严重了, 被各类故事, 例子注水到六百多页. 每个例子后面作者都会加一句, 故事中的主人公现在已是某个公司的高管等等, 背后意思就是我的谈判技巧已被各公司高管广泛使用, 或者是帮助他们走到这一步, 你们看着用吧, 颇有成功学的味道. 吐嘈归吐嘈, 这本书干货还是有的, 容我过滤一下.</p>
-</blockquote>
-<ul>
-<li>谈判的本质是<strong>获得更多</strong>:<ul>
-<li>这并不一定意味着我获得的越多，你得到的就因此而减少了</li>
-<li>更多也不一定意味着金钱更多，它可以指你所珍惜的任何东西变得更多</li>
-<li>双方的<strong>差异</strong>并不是坏事, 相反, 可以将一方重视而另一方不重视的东西拿出来交换.</li>
-</ul>
-</li>
-</ul>
-<ul>
-<li><p>谈判4个层次:</p>
-<ol>
-<li>迫使对方按照你的意愿行事。(威胁, 使用权力等；虽然有效, 但是也会付出沉重代价)</li>
-<li>让对方按照你的思路思考。(让对方从你的想法中看到合理的利益--“基于利益的谈判”；but human is irrational most of the time. emotion will ruin it)</li>
-<li>让对方理解你想让他们理解的观念。(从对方脑海的图像入手--站在对方角度, 说服对方改变观念, 这是正确的起点)</li>
-<li>让对方感受到你想让他们感受的。(最大杀器: 情感因素)</li>
-</ol>
-</li>
-<li><p>一场谈判，<em>只有你说结束，它才会结束</em>，否则绝不会提前结束。无论对方对你说多少次“不”，多少次和你意见不一致，多少次难为你，通通没有关系。要始终锁定于你的目标（在不会给对方带来困扰的情况下）。</p>
-</li>
-</ul>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2014/04/20/[读书笔记]沃顿商学院最受欢迎的谈判课/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
 
   <nav id="pagination">
   
@@ -347,7 +343,7 @@ No protocol specified
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>22</small></li>
   
   </ul>
 </div>
@@ -366,7 +362,9 @@ No protocol specified
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
-    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+    <li><a href="/tags/bash/">bash</a><small>4</small></li>
+  
+    <li><a href="/tags/c/">c</a><small>1</small></li>
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
@@ -380,7 +378,7 @@ No protocol specified
   
     <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
-    <li><a href="/tags/python/">python</a><small>11</small></li>
+    <li><a href="/tags/python/">python</a><small>12</small></li>
   
     <li><a href="/tags/script/">script</a><small>5</small></li>
   
@@ -400,7 +398,7 @@ No protocol specified
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 15.00px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
   </div>
 </div>
 

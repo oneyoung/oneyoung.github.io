@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-02-02T08:23:34.813Z</updated>
+  <updated>2015-02-28T07:18:45.533Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -13,6 +13,299 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[[python] os.system output out-of-order using shell pipe]]></title>
+    <link href="http://oneyoung.im/2015/02/28/ossystem-output-out-of-order-using-shell-pipe/"/>
+    <id>http://oneyoung.im/2015/02/28/ossystem-output-out-of-order-using-shell-pipe/</id>
+    <published>2015-02-28T07:13:33.000Z</published>
+    <updated>2015-02-28T07:18:37.000Z</updated>
+    <content type="html"><![CDATA[<p><em>t.py</em> as below:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="keyword">import</span> os
+
+<span class="keyword">print</span> <span class="string">"### before ps"</span>
+os.system(<span class="string">"ps"</span>)
+<span class="keyword">print</span> <span class="string">"### after ps"</span>
+</pre></td></tr></table></figure>
+
+<p>logical is quite simple, if we directly run it: <code>python t.py</code>, output as below, nothing special:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="preprocessor">### before ps</span>
+ <span class="constant"> PID </span>TTY         <span class="constant"> TIME </span>CMD
+ <span class="number">1619</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> python
+ <span class="number">1620</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+ <span class="number">1621</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="number">18701</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+<span class="preprocessor">### after ps</span>
+</pre></td></tr></table></figure>
+
+<p><a id="more"></a>
+However, if we use <strong>shell pipe</strong>: <code>python t.py | cat</code>, situation is very different:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="code"><pre> <span class="constant"> PID </span>TTY         <span class="constant"> TIME </span>CMD
+ <span class="number">1873</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> python
+ <span class="number">1874</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> cat
+ <span class="number">1875</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+ <span class="number">1876</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="number">18701</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+<span class="preprocessor">### before ps</span>
+<span class="preprocessor">### after ps</span>
+</pre></td></tr></table></figure>
+
+<p>The output of <code>os.system(&#39;ps&#39;)</code> output first.</p>
+<p>Let&#39;s have some modify on <em>t.py</em>:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="code"><pre><span class="keyword">import</span> os
+
+<span class="keyword">print</span> <span class="string">"### before ps"</span>
+os.system(<span class="string">"ps"</span>)
+<span class="keyword">print</span> <span class="string">"### after ps"</span>
+
+<span class="keyword">while</span> <span class="keyword">True</span>:   <span class="comment"># dead loop</span>
+    <span class="keyword">pass</span>
+</pre></td></tr></table></figure>
+
+<p>The the output will be like below:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>/tmp<span class="variable">$python</span> t.py | cat
+  PID TTY          TIME CMD
+ <span class="number">2218</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> python
+ <span class="number">2220</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> cat
+ <span class="number">2221</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+ <span class="number">2222</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="number">18701</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+</pre></td></tr></table></figure>
+
+<p>From the log, it becomes more confused, it looks like that <em>script t.py never executes, while later <code>ps</code> <strong>do</strong> execute</em>.
+If you just read the log, you will get confused and guess it should never happens. You would never think it was stuck in <code>while</code> loop.</p>
+<h3 id="it-s-not-limited-to-python">It&#39;s not limited to Python</h3>
+<p>Actually, it&#39;s not limit to Python, <code>os.system()</code> call is a simple implement from <code>system()</code> call in C.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre><span class="preprocessor">#include &lt;stdlib.h&gt;</span>
+<span class="preprocessor">#include &lt;stdio.h&gt;</span>
+
+<span class="keyword">int</span> main() {
+    <span class="built_in">printf</span>(<span class="string">"### before ps\n"</span>);
+    system(<span class="string">"ps"</span>);
+    <span class="built_in">printf</span>(<span class="string">"### after ps\n"</span>);
+    <span class="keyword">return</span> <span class="number">0</span>;
+}
+</pre></td></tr></table></figure>
+
+<p>output is the same after pipe:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre>/tmp$./a.out | cat
+  PID TTY          TIME CMD
+ <span class="number">5909</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+ <span class="number">6707</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> a.out
+ <span class="number">6708</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> cat
+ <span class="number">6709</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+ <span class="number">6710</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="comment">### before ps</span>
+<span class="comment">### after ps</span>
+</pre></td></tr></table></figure>
+
+<h3 id="root-cause">Root Cause</h3>
+<p>In fact, it&#39;s like a currency issue when multiple process write to the same <code>stdout</code>.</p>
+<p>The calling of <code>system()</code> will create another process, while <code>a.out</code> is trying write to the same <code>stdout</code>, too.</p>
+<blockquote>
+<p><strong>system()</strong> executes a command specified in command by calling <strong>/bin/sh -c</strong> command, and returns after the command has been completed.</p>
+</blockquote>
+<p>The output of <code>a.out</code> might not have been flush before <code>ps</code> exit, so output of <code>ps</code> show first in pipe.
+What if <code>a.out</code> print a lot of message, so that buffer can be flush into <code>stdout</code> in time:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre></td><td class="code"><pre><span class="preprocessor">#include &lt;stdlib.h&gt;</span>
+<span class="preprocessor">#include &lt;stdio.h&gt;</span>
+
+<span class="keyword">int</span> main() {
+        <span class="keyword">int</span> i;
+        <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++)  <span class="comment">// print mass log</span>
+            <span class="built_in">printf</span>(<span class="string">"### before ps\n"</span>);
+        system(<span class="string">"ps"</span>);
+        <span class="built_in">printf</span>(<span class="string">"### after ps\n"</span>);
+        <span class="keyword">return</span> <span class="number">0</span>;
+}
+</pre></td></tr></table></figure>
+
+<p>Here we can see clearly log conflict from output.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="code"><pre>....
+<span class="comment">### before ps</span>
+<span class="comment">### before ps</span>
+<span class="comment">### before ps</span>
+<span class="comment">### before  PID TTY          TIME CMD</span>
+ <span class="number">5909</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+<span class="number">12581</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> a.out
+<span class="number">12582</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> cat
+<span class="number">12583</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+<span class="number">12584</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+ ps
+<span class="comment">### before ps</span>
+<span class="comment">### before ps</span>
+<span class="comment">### before ps</span>
+<span class="comment">### before ps</span>
+<span class="keyword">...</span>
+</pre></td></tr></table></figure>
+
+<h3 id="solution">Solution</h3>
+<p>If we <code>fflush(stdout)</code> before calling <code>system()</code>, this problem will go away.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="code"><pre><span class="preprocessor">#include &lt;stdlib.h&gt;</span>
+<span class="preprocessor">#include &lt;stdio.h&gt;</span>
+
+<span class="keyword">int</span> main() {
+        <span class="built_in">printf</span>(<span class="string">"### before ps\n"</span>);
+        fflush(stdout);  <span class="comment">// flush stdout before running 'ps'</span>
+        system(<span class="string">"ps"</span>);
+        <span class="built_in">printf</span>(<span class="string">"### after ps\n"</span>);
+        <span class="keyword">return</span> <span class="number">0</span>;
+}
+</pre></td></tr></table></figure>
+
+<p>output:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+</pre></td><td class="code"><pre>oneyoung:/tmp$./a.out | cat
+<span class="comment">### before ps</span>
+  PID TTY          TIME CMD
+ <span class="number">5909</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+<span class="number">10667</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> a.out
+<span class="number">10668</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> cat
+<span class="number">10669</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+<span class="number">10670</span> pts/<span class="number">21</span>   <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="comment">### after ps</span>
+</pre></td></tr></table></figure>
+
+]]></content>
+    <summary type="html"><![CDATA[<p><em>t.py</em> as below:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="keyword">import</span> os
+
+<span class="keyword">print</span> <span class="string">"### before ps"</span>
+os.system(<span class="string">"ps"</span>)
+<span class="keyword">print</span> <span class="string">"### after ps"</span>
+</pre></td></tr></table></figure>
+
+<p>logical is quite simple, if we directly run it: <code>python t.py</code>, output as below, nothing special:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="preprocessor">### before ps</span>
+ <span class="constant"> PID </span>TTY         <span class="constant"> TIME </span>CMD
+ <span class="number">1619</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> python
+ <span class="number">1620</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+ <span class="number">1621</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="number">18701</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+<span class="preprocessor">### after ps</span>
+</pre></td></tr></table></figure>
+
+<p>]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="bash" scheme="http://oneyoung.im/tags/bash/"/>
+    
+      <category term="c" scheme="http://oneyoung.im/tags/c/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[[Android] wrong playback state when playing MIDI as Ringtone]]></title>
@@ -4456,100 +4749,6 @@ Garbage:[]
       <category term="python" scheme="http://oneyoung.im/tags/python/"/>
     
       <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[[python] array of empty list]]></title>
-    <link href="http://oneyoung.im/2013/08/25/%5Bpython%5D-array-of-empty-list/"/>
-    <id>http://oneyoung.im/2013/08/25/[python]-array-of-empty-list/</id>
-    <published>2013-08-25T03:32:00.000Z</published>
-    <updated>2013-08-25T03:33:46.000Z</updated>
-    <content type="html"><![CDATA[<p>in bucket sort, I want to generate a array of empty bucket, so I did in this way:</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l = [[]] * <span class="number">3</span>
-<span class="prompt">&gt;&gt;&gt; </span>l
-[[], [], []]
-</pre></td></tr></table></figure>
-
-<p>Then the problem is when I try to append one element to bucket[0], it affects all the rest.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l[<span class="number">0</span>].append(<span class="number">1</span>)
-<span class="prompt">&gt;&gt;&gt; </span>l
-[[<span class="number">1</span>], [<span class="number">1</span>], [<span class="number">1</span>]]
-</pre></td></tr></table></figure>
-
-<a id="more"></a>
-
-<p>In fact, the member of the array all refer to the same object.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-</pre></td><td class="code"><pre>
-<span class="prompt">&gt;&gt;&gt; </span><span class="keyword">for</span> lo <span class="keyword">in</span> l:
-<span class="prompt">... </span>    <span class="keyword">print</span> id(lo)
-<span class="prompt">... </span>    
-<span class="prompt">... </span>
-<span class="number">155255468</span>
-<span class="number">155255468</span>
-<span class="number">155255468</span>
-</pre></td></tr></table></figure>
-
-<p>So in this situation, <code>[[]] * 3</code> python just do a swallow copy. So it&#39;s better to apply this to only immutable objects. The right way but still eleglant is to use list comprehension.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l2 = [[] <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">3</span>)]
-<span class="prompt">&gt;&gt;&gt; </span>l2
-[[], [], []]
-<span class="prompt">&gt;&gt;&gt; </span><span class="keyword">for</span> lo <span class="keyword">in</span> l2:
-<span class="prompt">... </span>    <span class="keyword">print</span> id(lo)
-<span class="prompt">... </span>    
-<span class="prompt">... </span>
-<span class="number">155291020</span>
-<span class="number">155257292</span>
-<span class="number">155254988</span>
-</pre></td></tr></table></figure>
-
-<p>Every time, a new empty list is created.</p>
-]]></content>
-    <summary type="html"><![CDATA[<p>in bucket sort, I want to generate a array of empty bucket, so I did in this way:</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l = [[]] * <span class="number">3</span>
-<span class="prompt">&gt;&gt;&gt; </span>l
-[[], [], []]
-</pre></td></tr></table></figure>
-
-<p>Then the problem is when I try to append one element to bucket[0], it affects all the rest.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l[<span class="number">0</span>].append(<span class="number">1</span>)
-<span class="prompt">&gt;&gt;&gt; </span>l
-[[<span class="number">1</span>], [<span class="number">1</span>], [<span class="number">1</span>]]
-</pre></td></tr></table></figure>
-
-]]></summary>
-    
-      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
     
   </entry>
   

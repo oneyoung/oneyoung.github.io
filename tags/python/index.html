@@ -67,6 +67,69 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2015-02-28T07:13:33.000Z"><a href="/2015/02/28/ossystem-output-out-of-order-using-shell-pipe/">2015-02-28</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2015/02/28/ossystem-output-out-of-order-using-shell-pipe/">[python] os.system output out-of-order using shell pipe</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p><em>t.py</em> as below:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+</pre></td><td class="code"><pre><span class="keyword">import</span> os
+
+<span class="keyword">print</span> <span class="string">"### before ps"</span>
+os.system(<span class="string">"ps"</span>)
+<span class="keyword">print</span> <span class="string">"### after ps"</span>
+</pre></td></tr></table></figure>
+
+<p>logical is quite simple, if we directly run it: <code>python t.py</code>, output as below, nothing special:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="preprocessor">### before ps</span>
+ <span class="constant"> PID </span>TTY         <span class="constant"> TIME </span>CMD
+ <span class="number">1619</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> python
+ <span class="number">1620</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> sh
+ <span class="number">1621</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> ps
+<span class="number">18701</span> pts/<span class="number">9</span>    <span class="number">00</span>:<span class="number">00</span>:<span class="number">00</span> bash
+<span class="preprocessor">### after ps</span>
+</pre></td></tr></table></figure>
+
+<p>
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2015/02/28/ossystem-output-out-of-order-using-shell-pipe/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2014-04-25T03:38:30.000Z"><a href="/2014/04/25/导出骑记(iridingcc)轨迹/">2014-04-25</a></time>
     
     
@@ -263,59 +326,6 @@ tar -xvf dropbox.tar.gz
 
 
   
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-10-25T00:44:42.000Z"><a href="/2013/10/25/[python]-operator-module-加速简单函数/">2013-10-25</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/10/25/[python]-operator-module-加速简单函数/">operator module 加速简单函数</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
-    <span class="keyword">return</span> x + y
-</pre></td></tr></table></figure>
-
-<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
-<h4 id="-lambda-">与lambda对比测试</h4>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
-<span class="number">0.17214393615722656</span>
-<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
-<span class="number">0.11670303344726562</span>
-</pre></td></tr></table></figure>
-
-<p>单个函数看, 有30%的效率提升.</p>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/10/25/[python]-operator-module-加速简单函数/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
 
   <nav id="pagination">
   
@@ -343,7 +353,7 @@ tar -xvf dropbox.tar.gz
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>22</small></li>
   
   </ul>
 </div>
@@ -362,7 +372,9 @@ tar -xvf dropbox.tar.gz
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
-    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+    <li><a href="/tags/bash/">bash</a><small>4</small></li>
+  
+    <li><a href="/tags/c/">c</a><small>1</small></li>
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
@@ -376,7 +388,7 @@ tar -xvf dropbox.tar.gz
   
     <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
-    <li><a href="/tags/python/">python</a><small>11</small></li>
+    <li><a href="/tags/python/">python</a><small>12</small></li>
   
     <li><a href="/tags/script/">script</a><small>5</small></li>
   
@@ -396,7 +408,7 @@ tar -xvf dropbox.tar.gz
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 15.00px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
   </div>
 </div>
 

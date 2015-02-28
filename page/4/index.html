@@ -63,6 +63,65 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2013-12-18T01:35:33.000Z"><a href="/2013/12/18/利用dropbox自动备份网站数据/">2013-12-18</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2013/12/18/利用dropbox自动备份网站数据/">利用dropbox自动备份网站数据</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>我等小blog网站自然是用不上高大上的备份方案, 但是不备份后果很严重, 万一那天VPS公司跑路了, 或者机器挂了, 东西就全没鸟.</p>
+<p>穷人只用的起免费的Dropbox =.=</p>
+<h4 id="-">安装</h4>
+<p>根据自己安装版本选择32或者64位的, 解压后会有一个.dropbox-dist的隐藏目录.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="comment"># Stable 32-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86"</span>
+ 
+<span class="comment"># Or stable 64-bit:</span>
+wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86_64"</span>
+
+tar -xvf dropbox.tar.gz
+</pre></td></tr></table></figure>
+
+<p>第一次在cmdline运行的时候, 会提示通过一个链接绑定帐号, 照着做就行了.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
+</pre></td><td class="code"><pre>~/.dropbox-dist/dropbox
+</pre></td></tr></table></figure>
+
+<p>然后就会在home目录下建立一个Dropbox的目录.</p>
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2013/12/18/利用dropbox自动备份网站数据/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+
+  <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2013-12-17T22:58:11.000Z"><a href="/2013/12/18/bash:-vim-自动补全文件名卡住/">2013-12-18</a></time>
     
     
@@ -239,57 +298,6 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
 
 
 
-  <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-08-25T03:32:00.000Z"><a href="/2013/08/25/[python]-array-of-empty-list/">2013-08-25</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/08/25/[python]-array-of-empty-list/">[python] array of empty list</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>in bucket sort, I want to generate a array of empty bucket, so I did in this way:</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l = [[]] * <span class="number">3</span>
-<span class="prompt">&gt;&gt;&gt; </span>l
-[[], [], []]
-</pre></td></tr></table></figure>
-
-<p>Then the problem is when I try to append one element to bucket[0], it affects all the rest.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>l[<span class="number">0</span>].append(<span class="number">1</span>)
-<span class="prompt">&gt;&gt;&gt; </span>l
-[[<span class="number">1</span>], [<span class="number">1</span>], [<span class="number">1</span>]]
-</pre></td></tr></table></figure>
-
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/08/25/[python]-array-of-empty-list/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-
 
 <nav id="pagination">
   
@@ -317,7 +325,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/categories/Sports/">Sports</a><small>1</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>21</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>22</small></li>
   
   </ul>
 </div>
@@ -336,7 +344,9 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/archlinux/">archlinux</a><small>3</small></li>
   
-    <li><a href="/tags/bash/">bash</a><small>3</small></li>
+    <li><a href="/tags/bash/">bash</a><small>4</small></li>
+  
+    <li><a href="/tags/c/">c</a><small>1</small></li>
   
     <li><a href="/tags/django/">django</a><small>1</small></li>
   
@@ -350,7 +360,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
   
     <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
-    <li><a href="/tags/python/">python</a><small>11</small></li>
+    <li><a href="/tags/python/">python</a><small>12</small></li>
   
     <li><a href="/tags/script/">script</a><small>5</small></li>
   
@@ -370,7 +380,7 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 13.33px;">bash</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.67px;">algrithms</a><a href="/tags/android/" style="font-size: 18.33px;">android</a><a href="/tags/archlinux/" style="font-size: 13.33px;">archlinux</a><a href="/tags/bash/" style="font-size: 15.00px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 18.33px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 15.00px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 16.67px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.00px;">web</a><a href="/tags/读书笔记/" style="font-size: 15.00px;">读书笔记</a>
   </div>
 </div>
 
