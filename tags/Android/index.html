@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="chrome=1">
   
-  <title>部署Django到Lighttpd | Logic in Chaos</title>
+  <title>Android | Logic in Chaos</title>
   <meta name="author" content="oneyoung">
   
   <meta name="description" content="This is oneyoung&#39;s Blog">
@@ -12,7 +12,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
-  <meta property="og:title" content="部署Django到Lighttpd"/>
+  
   <meta property="og:site_name" content="Logic in Chaos"/>
 
   <link rel="alternate" href="/atom.xml" title="Logic in Chaos" type="application/atom+xml">
@@ -58,146 +58,54 @@
   <div class="clearfix"></div>
 </nav>
 <div class="clearfix"></div></header>
-    <div class="content"><article class="post">
+    <div class="content">
+<h2 class="archive-title tag">Android</h2>
+
+
+  
+    <article class="post">
   <header>
     
       <div class="icon"></div>
-      <time datetime="2013-02-17T19:09:52.000Z"><a href="/2013/02/18/部署Django到Lighttpd/">2013-02-18</a></time>
+      <time datetime="2015-04-03T05:43:30.000Z"><a href="/2015/04/03/oruxmaps-添加-google-maps-(国内源)/">2015-04-03</a></time>
     
     
   
-    <h1 class="title">部署Django到Lighttpd</h1>
+    <h1 class="title"><a href="/2015/04/03/oruxmaps-添加-google-maps-(国内源)/">OruxMaps 添加 Google Maps (国内源)</a></h1>
   
 
   </header>
   
   <div class="entry">
     
-      <h3 id="django-fastcgi">Django &amp; FastCGI</h3>
-<h4 id="-">软件包依赖</h4>
-<p>在Django上使用FastCGI需要<code>flup</code>包:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>pip install flup
-</pre></td></tr></table></figure>
-
-<h4 id="-django-server">运行Django server</h4>
-<p>Django 内置有<code>runfcgi</code>命令, 建立一个脚本, 运行Django:</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-</pre></td><td class="code"><pre><span class="shebang">#!/bin/sh</span>
-app_path=<span class="string">'/path/to/django-app/'</span>
-p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
-<span class="built_in">cd</span> <span class="string">"<span class="variable">$app_path</span>"</span>
-<span class="keyword">if</span> [ <span class="operator">-f</span> <span class="variable">$p</span> ]; <span class="keyword">then</span>
-    kill $(cat -- <span class="variable">$p</span>)
-    rm <span class="operator">-f</span> -- <span class="variable">$p</span>
-<span class="keyword">fi</span>
-
-<span class="keyword">exec</span> /usr/bin/env \
-    PYTHONPATH=<span class="string">"<span class="variable">$app_path</span>/.."</span> python \
-    manage.py runfcgi \
-    method=threaded \
-    host=<span class="number">127.0</span>.<span class="number">0.1</span> \
-    port=<span class="number">3033</span> \
-    pidfile=<span class="string">"<span class="variable">$p</span>"</span>
-</pre></td></tr></table></figure>
-
-<p>这里使用的TCP方式, 使用127.0.0.1:3033 地址.</p>
-<a id="more"></a>
-
-<h3 id="lighttpd-">lighttpd 配置</h3>
-<p>配置如下:</p>
-<p>File path: <code>/etc/lighttpd/lighttpd.conf</code></p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-</pre></td><td class="code"><pre>server.modules += ( <span class="string">"mod_fastcgi"</span>, <span class="string">"mod_rewrite"</span> )
-server.<span class="built_in">document</span>-root = <span class="string">"/home/user/public_html"</span>
-fastcgi.server = (
-    <span class="string">"/mysite.fcgi"</span><span class="function"> =&gt;</span> (
-        <span class="string">"main"</span><span class="function"> =&gt;</span> (
-            <span class="string">"host"</span><span class="function"> =&gt;</span> <span class="string">"127.0.0.1"</span>,
-            <span class="string">"port"</span><span class="function"> =&gt;</span> <span class="number">3033</span>,
-            <span class="comment"># Use socket instead of host / port for TCP fastcgi</span>
-            <span class="comment"># "socket" =&gt; "/home/user/mysite.sock",</span>
-            <span class="string">"check-local"</span><span class="function"> =&gt;</span> <span class="string">"disable"</span>,
-        )
-    ),
-)
-
-url.rewrite-once = (
-    <span class="string">"^(/media/.*)$"</span><span class="function"> =&gt;</span> <span class="string">"$1"</span>,
-    <span class="string">"^/favicon\.ico$"</span><span class="function"> =&gt;</span> <span class="string">"/media/favicon.ico"</span>,
-    <span class="string">"^(/.*)$"</span><span class="function"> =&gt;</span> <span class="string">"/mysite.fcgi$1"</span>,
-)
-</pre></td></tr></table></figure>
-
-<p>fastcgi server 配置到先前的127.0.0.1:3033地址.</p>
-<p>后面添加一个<code>url.rewrite-once</code>规制, 可以从定向url.</p>
-<ul>
-<li>/media/.. 和 /favicon.ico 等静态文件, 直接有lighttpd访问</li>
-<li>其他url则交给 /mysite.fcgi, 通过fastcgi, 将请求交给Django</li>
-</ul>
-<p>但是, 这里有个问题, lighttpd 通过FastCGI传递参数给Django, 会在每个path前面加上 /mysite.fcgi, 比如 /home/ 会被改成 /mysite.fcgi/home/, 这个就会导致Django url pattern没有找到, 导致404.</p>
-<p>幸好, Django已经提供了一个<a href="https://docs.djangoproject.com/en/dev/howto/deployment/fastcgi/#forcing-the-url-prefix-to-a-particular-value" target="_blank">解决方案</a>, 在settings.py 里添加<code>FORCE_SCRIPT_NAME = &#39;&#39;</code> 就可以解决这个问题.</p>
+      <p>ruxMaps 从5.5 之后由于版权问题，就移除了Google Maps，网上已经有很多修改<code>onlinemapsources.xml</code>的方案了。</p>
+<p>但是基本上都是用<code>google.com</code>的源，因为你懂得的原因，基本上不用科学上网，很难访问。</p>
+<p>下面我修改了一版，是基于<code>google.cn</code>，在墙内下载也毫无鸭梨：</p>
 
     
   </div>
-  <footer>
+  <footer class="end-sep">
     
       
-  
-  <div class="categories">
-    <a href="/categories/Tech/">Tech</a>
-  </div>
-
+        <div class="alignleft">
+          <a href="/2015/04/03/oruxmaps-添加-google-maps-(国内源)/#more" class="more-link">Read More</a>
+        </div>
       
-  
-  <div class="tags">
-    <a href="/tags/django/">django</a>, <a href="/tags/lighttpd/">lighttpd</a>, <a href="/tags/web/">web</a>
-  </div>
-
+      
     
     <div class="clearfix"></div>
   </footer>
 </article>
 
 
-<section id="comment">
-  <h1 class="title">留言</h1>
-  <div class="ds-thread" data-title="部署Django到Lighttpd">
-  </div>
-</section>
+  
+
+  <nav id="pagination">
+  
+  
+  <div class="clearfix"></div>
+</nav>
+
 </div>
   </div>
   <div class="widget-wrapper">
