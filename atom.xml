@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-04-03T05:45:52.260Z</updated>
+  <updated>2015-04-03T05:49:41.985Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -19,7 +19,7 @@
     <link href="http://oneyoung.im/2015/04/03/oruxmaps-%E6%B7%BB%E5%8A%A0-google-maps-(%E5%9B%BD%E5%86%85%E6%BA%90)/"/>
     <id>http://oneyoung.im/2015/04/03/oruxmaps-添加-google-maps-(国内源)/</id>
     <published>2015-04-03T05:43:30.000Z</published>
-    <updated>2015-04-03T05:45:49.000Z</updated>
+    <updated>2015-04-03T05:49:24.000Z</updated>
     <content type="html"><![CDATA[<p>ruxMaps 从5.5 之后由于版权问题，就移除了Google Maps，网上已经有很多修改<code>onlinemapsources.xml</code>的方案了。</p>
 <p>但是基本上都是用<code>google.com</code>的源，因为你懂得的原因，基本上不用科学上网，很难访问。</p>
 <p>下面我修改了一版，是基于<code>google.cn</code>，在墙内下载也毫无鸭梨：</p>
@@ -153,7 +153,7 @@
 <p>下面我修改了一版，是基于<code>google.cn</code>，在墙内下载也毫无鸭梨：</p>
 ]]></summary>
     
-      <category term="Android" scheme="http://oneyoung.im/tags/Android/"/>
+      <category term="android" scheme="http://oneyoung.im/tags/android/"/>
     
       <category term="Sports" scheme="http://oneyoung.im/categories/Sports/"/>
     
