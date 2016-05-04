@@ -67,6 +67,135 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2016-05-04T05:03:59.000Z"><a href="/2016/05/04/[python]-pipeline-design/">2016-05-04</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2016/05/04/[python]-pipeline-design/">[python] pipeline design</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <blockquote>
+<p>Pipeline framework like assembly line in manufactory.</p>
+</blockquote>
+<p>Image that:</p>
+<ul>
+<li>A kind product consists of several steps to produce</li>
+<li>Each step only has one worker<ul>
+<li>A worker can only handle one step</li>
+<li>A worker can&#39;t work in parallel, must handle one by one.</li>
+<li>Once the worker finished this step, he pass the product to next worker(step)</li>
+</ul>
+</li>
+<li>There are a great number of product for manufactorying.<ul>
+<li>In order to improve efficiency, each woker must be in full load.</li>
+</ul>
+</li>
+</ul>
+<p>
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2016/05/04/[python]-pipeline-design/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
+      <time datetime="2016-02-15T02:06:22.000Z"><a href="/2016/02/15/falcon-django-like-urlreverse-router/">2016-02-15</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2016/02/15/falcon-django-like-urlreverse-router/">Falcon: Django-like urlreverse router</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>The default <a href="http://falcon.readthedocs.org/en/latest/api/routing.html" target="_blank">Falcon router</a> don&#39;t support urlreverse,
+but fortunately it allows us to use a costomized router.</p>
+<p>Override the <code>add_route</code>, adding a aditional params <code>name</code> to specified url template name.</p>
+<blockquote>
+<p>Note: Falcon version should <code>&gt;=0.4</code> to support this feature.</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre><span class="keyword">from</span> falcon.routing <span class="keyword">import</span> DefaultRouter
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">ReverseRouter</span><span class="params">(DefaultRouter)</span>:</span>
+    url_map = {}
+
+    <span class="comment"># override add_route to add our map</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">add_route</span><span class="params">(self, uri_template, method_map, resource, name=None)</span>:</span>
+        <span class="keyword">if</span> name:
+            self.url_map[name] = uri_template
+        DefaultRouter.add_route(self, uri_template, method_map, resource)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">reverse</span><span class="params">(self, _name, **kwargs)</span>:</span>
+        <span class="string">'''
+        reverse url
+        '''</span>
+        <span class="keyword">assert</span> _name <span class="keyword">in</span> self.url_map, <span class="string">"url name: %s not in url map"</span> % _name
+        url_tmpl = self.url_map.get(_name)
+        <span class="keyword">return</span> url_tmpl.format(**kwargs)
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2016/02/15/falcon-django-like-urlreverse-router/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2015-02-28T07:13:33.000Z"><a href="/2015/02/28/ossystem-output-out-of-order-using-shell-pipe/">2015-02-28</a></time>
     
     
@@ -225,107 +354,6 @@ os.system(<span class="string">"ps"</span>)
 
 
   
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-12-18T01:35:33.000Z"><a href="/2013/12/18/利用dropbox自动备份网站数据/">2013-12-18</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/12/18/利用dropbox自动备份网站数据/">利用dropbox自动备份网站数据</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <p>我等小blog网站自然是用不上高大上的备份方案, 但是不备份后果很严重, 万一那天VPS公司跑路了, 或者机器挂了, 东西就全没鸟.</p>
-<p>穷人只用的起免费的Dropbox =.=</p>
-<h4 id="-">安装</h4>
-<p>根据自己安装版本选择32或者64位的, 解压后会有一个.dropbox-dist的隐藏目录.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-</pre></td><td class="code"><pre><span class="comment"># Stable 32-bit:</span>
-wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86"</span>
- 
-<span class="comment"># Or stable 64-bit:</span>
-wget -O dropbox.tar.gz <span class="string">"http://www.dropbox.com/download/?plat=lnx.x86_64"</span>
-
-tar -xvf dropbox.tar.gz
-</pre></td></tr></table></figure>
-
-<p>第一次在cmdline运行的时候, 会提示通过一个链接绑定帐号, 照着做就行了.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre>1
-</pre></td><td class="code"><pre>~/.dropbox-dist/dropbox
-</pre></td></tr></table></figure>
-
-<p>然后就会在home目录下建立一个Dropbox的目录.</p>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/12/18/利用dropbox自动备份网站数据/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
-    <article class="post">
-  <header>
-    
-      <div class="icon"></div>
-      <time datetime="2013-11-27T19:47:45.000Z"><a href="/2013/11/28/计算n的阶乘末尾有多少个0/">2013-11-28</a></time>
-    
-    
-  
-    <h1 class="title"><a href="/2013/11/28/计算n的阶乘末尾有多少个0/">计算n的阶乘末尾有多少个0</a></h1>
-  
-
-  </header>
-  
-  <div class="entry">
-    
-      <blockquote>
-<p>计算n的阶乘末尾有多少个0，例如5! = 120 末尾有1个0，10!= 3628800末尾有2个0。</p>
-</blockquote>
-<ul>
-<li>对于一个多因式相乘, 末尾有多少个0, 取决于有多少个10相乘.</li>
-<li>10的倍数也可以为结果贡献0, 比如10, 20, 30, 因此可以记为 P = i * 10</li>
-<li>10可以因式分解成5 <em> 2, 于是 P = i </em> 5 * 2</li>
-<li>对于n!, 共有1 <em> 2 </em> ... * n</li>
-</ul>
-
-    
-  </div>
-  <footer class="end-sep">
-    
-      
-        <div class="alignleft">
-          <a href="/2013/11/28/计算n的阶乘末尾有多少个0/#more" class="more-link">Read More</a>
-        </div>
-      
-      
-    
-    <div class="clearfix"></div>
-  </footer>
-</article>
-
-
-  
 
   <nav id="pagination">
   
@@ -353,7 +381,7 @@ tar -xvf dropbox.tar.gz
   
     <li><a href="/categories/Sports/">Sports</a><small>2</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>22</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>23</small></li>
   
   </ul>
 </div>
@@ -388,13 +416,13 @@ tar -xvf dropbox.tar.gz
   
     <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
-    <li><a href="/tags/python/">python</a><small>12</small></li>
+    <li><a href="/tags/python/">python</a><small>14</small></li>
   
     <li><a href="/tags/script/">script</a><small>5</small></li>
   
     <li><a href="/tags/vim/">vim</a><small>1</small></li>
   
-    <li><a href="/tags/web/">web</a><small>4</small></li>
+    <li><a href="/tags/web/">web</a><small>5</small></li>
   
     <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
   
@@ -408,7 +436,7 @@ tar -xvf dropbox.tar.gz
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 11.43px;">algrithms</a><a href="/tags/android/" style="font-size: 18.57px;">android</a><a href="/tags/archlinux/" style="font-size: 12.86px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.29px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 17.14px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.29px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 15.71px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 14.29px;">web</a><a href="/tags/读书笔记/" style="font-size: 14.29px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.43px;">algrithms</a><a href="/tags/android/" style="font-size: 18.57px;">android</a><a href="/tags/archlinux/" style="font-size: 12.86px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.29px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 17.14px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.29px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 15.71px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.71px;">web</a><a href="/tags/读书笔记/" style="font-size: 14.29px;">读书笔记</a>
   </div>
 </div>
 
@@ -419,7 +447,7 @@ tar -xvf dropbox.tar.gz
   </div>
   <footer id="footer"><div class="copyright">
   
-  &copy; 2015 <a href="/">oneyoung</a>
+  &copy; 2016 <a href="/">oneyoung</a>
   
 </div>
 <div class="theme-copyright">

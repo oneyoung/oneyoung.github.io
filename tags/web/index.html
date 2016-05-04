@@ -67,6 +67,85 @@
   <header>
     
       <div class="icon"></div>
+      <time datetime="2016-02-15T02:06:22.000Z"><a href="/2016/02/15/falcon-django-like-urlreverse-router/">2016-02-15</a></time>
+    
+    
+  
+    <h1 class="title"><a href="/2016/02/15/falcon-django-like-urlreverse-router/">Falcon: Django-like urlreverse router</a></h1>
+  
+
+  </header>
+  
+  <div class="entry">
+    
+      <p>The default <a href="http://falcon.readthedocs.org/en/latest/api/routing.html" target="_blank">Falcon router</a> don&#39;t support urlreverse,
+but fortunately it allows us to use a costomized router.</p>
+<p>Override the <code>add_route</code>, adding a aditional params <code>name</code> to specified url template name.</p>
+<blockquote>
+<p>Note: Falcon version should <code>&gt;=0.4</code> to support this feature.</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre><span class="keyword">from</span> falcon.routing <span class="keyword">import</span> DefaultRouter
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">ReverseRouter</span><span class="params">(DefaultRouter)</span>:</span>
+    url_map = {}
+
+    <span class="comment"># override add_route to add our map</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">add_route</span><span class="params">(self, uri_template, method_map, resource, name=None)</span>:</span>
+        <span class="keyword">if</span> name:
+            self.url_map[name] = uri_template
+        DefaultRouter.add_route(self, uri_template, method_map, resource)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">reverse</span><span class="params">(self, _name, **kwargs)</span>:</span>
+        <span class="string">'''
+        reverse url
+        '''</span>
+        <span class="keyword">assert</span> _name <span class="keyword">in</span> self.url_map, <span class="string">"url name: %s not in url map"</span> % _name
+        url_tmpl = self.url_map.get(_name)
+        <span class="keyword">return</span> url_tmpl.format(**kwargs)
+</pre></td></tr></table></figure>
+
+
+    
+  </div>
+  <footer class="end-sep">
+    
+      
+        <div class="alignleft">
+          <a href="/2016/02/15/falcon-django-like-urlreverse-router/#more" class="more-link">Read More</a>
+        </div>
+      
+      
+    
+    <div class="clearfix"></div>
+  </footer>
+</article>
+
+
+  
+    <article class="post">
+  <header>
+    
+      <div class="icon"></div>
       <time datetime="2013-12-18T01:35:33.000Z"><a href="/2013/12/18/利用dropbox自动备份网站数据/">2013-12-18</a></time>
     
     
@@ -335,7 +414,7 @@ p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
   
     <li><a href="/categories/Sports/">Sports</a><small>2</small></li>
   
-    <li><a href="/categories/Tech/">Tech</a><small>22</small></li>
+    <li><a href="/categories/Tech/">Tech</a><small>23</small></li>
   
   </ul>
 </div>
@@ -370,13 +449,13 @@ p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
   
     <li><a href="/tags/multimedia/">multimedia</a><small>4</small></li>
   
-    <li><a href="/tags/python/">python</a><small>12</small></li>
+    <li><a href="/tags/python/">python</a><small>14</small></li>
   
     <li><a href="/tags/script/">script</a><small>5</small></li>
   
     <li><a href="/tags/vim/">vim</a><small>1</small></li>
   
-    <li><a href="/tags/web/">web</a><small>4</small></li>
+    <li><a href="/tags/web/">web</a><small>5</small></li>
   
     <li><a href="/tags/读书笔记/">读书笔记</a><small>4</small></li>
   
@@ -390,7 +469,7 @@ p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
 <div class="widget tagcloud">
   <h3 class="title">标签云</h3>
   <div class="entry">
-    <a href="/tags/algrithms/" style="font-size: 11.43px;">algrithms</a><a href="/tags/android/" style="font-size: 18.57px;">android</a><a href="/tags/archlinux/" style="font-size: 12.86px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.29px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 17.14px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.29px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 15.71px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 14.29px;">web</a><a href="/tags/读书笔记/" style="font-size: 14.29px;">读书笔记</a>
+    <a href="/tags/algrithms/" style="font-size: 11.43px;">algrithms</a><a href="/tags/android/" style="font-size: 18.57px;">android</a><a href="/tags/archlinux/" style="font-size: 12.86px;">archlinux</a><a href="/tags/bash/" style="font-size: 14.29px;">bash</a><a href="/tags/c/" style="font-size: 10.00px;">c</a><a href="/tags/django/" style="font-size: 10.00px;">django</a><a href="/tags/java/" style="font-size: 17.14px;">java</a><a href="/tags/kernel/" style="font-size: 10.00px;">kernel</a><a href="/tags/lighttpd/" style="font-size: 10.00px;">lighttpd</a><a href="/tags/mail/" style="font-size: 10.00px;">mail</a><a href="/tags/multimedia/" style="font-size: 14.29px;">multimedia</a><a href="/tags/python/" style="font-size: 20.00px;">python</a><a href="/tags/script/" style="font-size: 15.71px;">script</a><a href="/tags/vim/" style="font-size: 10.00px;">vim</a><a href="/tags/web/" style="font-size: 15.71px;">web</a><a href="/tags/读书笔记/" style="font-size: 14.29px;">读书笔记</a>
   </div>
 </div>
 
@@ -401,7 +480,7 @@ p=<span class="string">'/var/run/lighttpd/django-fastcgi.pid'</span>
   </div>
   <footer id="footer"><div class="copyright">
   
-  &copy; 2015 <a href="/">oneyoung</a>
+  &copy; 2016 <a href="/">oneyoung</a>
   
 </div>
 <div class="theme-copyright">

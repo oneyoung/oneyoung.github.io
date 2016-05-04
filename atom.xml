@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Finding way to program the life]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://oneyoung.im/"/>
-  <updated>2015-04-03T05:49:41.985Z</updated>
+  <updated>2016-05-04T06:16:17.198Z</updated>
   <id>http://oneyoung.im/</id>
   
   <author>
@@ -13,6 +13,474 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[[python] pipeline design]]></title>
+    <link href="http://oneyoung.im/2016/05/04/%5Bpython%5D-pipeline-design/"/>
+    <id>http://oneyoung.im/2016/05/04/[python]-pipeline-design/</id>
+    <published>2016-05-04T05:03:59.000Z</published>
+    <updated>2016-05-04T06:15:58.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>Pipeline framework like assembly line in manufactory.</p>
+</blockquote>
+<p>Image that:</p>
+<ul>
+<li>A kind product consists of several steps to produce</li>
+<li>Each step only has one worker<ul>
+<li>A worker can only handle one step</li>
+<li>A worker can&#39;t work in parallel, must handle one by one.</li>
+<li>Once the worker finished this step, he pass the product to next worker(step)</li>
+</ul>
+</li>
+<li>There are a great number of product for manufactorying.<ul>
+<li>In order to improve efficiency, each woker must be in full load.</li>
+</ul>
+</li>
+</ul>
+<p><a id="more"></a>
+Now we build a pipeline framework for this design.</p>
+<p>First, we come out with a class <code>Worker</code> to represent a worker</p>
+<ul>
+<li>He can accept a kind of <code>task</code></li>
+<li>We can chain to next step by <code>Worker.set_next(next_worker)</code></li>
+<li>Once this worker <em>started</em><ul>
+<li>He setup a working thread to fetch and handle product</li>
+<li>Product comes from previous step by <code>Worker.feed()</code></li>
+<li>The worker can send product to next step once this step done.</li>
+<li>The worker can discard some product if result is not good.</li>
+</ul>
+</li>
+<li>use <code>Worker.join()</code> to wait for all task done and stop.</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+</pre></td><td class="code"><pre><span class="keyword">import</span> Queue
+<span class="keyword">import</span> threading
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">Worker</span><span class="params">(object)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, task)</span>:</span>
+        self._queue = Queue.Queue()
+        self._task = task
+        self._next = <span class="keyword">None</span>
+        self._stop = threading.Event()
+        self._stop.clear()
+
+    <span class="function"><span class="keyword">def</span> <span class="title">feed</span><span class="params">(self, obj)</span>:</span>
+        <span class="string">'''
+        feed object to this worker
+        '''</span>
+        self._queue.put(obj)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">set_next</span><span class="params">(self, next)</span>:</span>
+        <span class="string">'''
+        set next worker for the pipeline
+        '''</span>
+        self._next = next
+
+    <span class="function"><span class="keyword">def</span> <span class="title">_thread_func</span><span class="params">(self)</span>:</span>
+        <span class="keyword">while</span> <span class="keyword">not</span> self._stop.is_set():
+            obj = self._queue.get()
+            <span class="comment"># here, we use special object None to notify queue done</span>
+            <span class="keyword">if</span> obj <span class="keyword">is</span> <span class="keyword">None</span>:
+                <span class="keyword">break</span>
+            ret = self._task(obj)
+            <span class="comment"># if ret is None, we won't go to next chain</span>
+            <span class="keyword">if</span> self._next <span class="keyword">and</span> ret <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:
+                self._next.feed(ret)
+            self._queue.task_done()
+
+    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span>
+        <span class="string">'''
+        start this worker
+        '''</span>
+        th = threading.Thread(target=self._thread_func)
+        th.start()
+        self._thread = th
+
+    <span class="function"><span class="keyword">def</span> <span class="title">join</span><span class="params">(self)</span>:</span>
+        <span class="string">'''
+        wait for job done
+        '''</span>
+        self._queue.join()  <span class="comment"># wait for queue done</span>
+        self._stop.set()  <span class="comment"># set stop flag</span>
+        self.feed(<span class="keyword">None</span>)  <span class="comment"># set None to exit thread</span>
+        self._thread.join()
+</pre></td></tr></table></figure>
+
+<p>Then we define the pipeline.</p>
+<ul>
+<li>We can define task for each step, and add it sequentially by <code>Pipeline.add_step(task)</code></li>
+<li>A calling to <code>Pipeline.start()</code> will start the pipeline and active workers</li>
+<li>Send your raw product to <code>Pipeline.feed(obj)</code>, it will be processed in this pipeline</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+</pre></td><td class="code"><pre><span class="class"><span class="keyword">class</span> <span class="title">Pipeline</span><span class="params">(object)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span>
+        self._workers = []
+        self._started = <span class="keyword">False</span>
+
+    <span class="function"><span class="keyword">def</span> <span class="title">feed</span><span class="params">(self, obj)</span>:</span>
+        <span class="keyword">assert</span> self._started, <span class="string">'Pipeline not started'</span>
+        self._workers[<span class="number">0</span>].feed(obj)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">add_step</span><span class="params">(self, task)</span>:</span>
+        <span class="keyword">assert</span> <span class="keyword">not</span> self._started, <span class="string">'Pipeline arealdy started'</span>
+        worker = Worker(task)
+        <span class="keyword">if</span> len(self._workers) &gt; <span class="number">0</span>:
+            <span class="comment"># chain the next worker</span>
+            last = self._workers[-<span class="number">1</span>]
+            last.set_next(worker)
+        self._workers.append(worker)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span>
+        <span class="string">'''
+        start the Pipeline
+        '''</span>
+        <span class="keyword">assert</span> len(self._workers) &gt; <span class="number">0</span>, <span class="string">'no steps found'</span>
+        <span class="keyword">for</span> w <span class="keyword">in</span> self._workers:
+            w.start()
+        self._started = <span class="keyword">True</span>
+
+    <span class="function"><span class="keyword">def</span> <span class="title">join</span><span class="params">(self)</span>:</span>
+        <span class="string">'''
+        wait the Pipeline done
+        '''</span>
+        <span class="comment"># Notice: the sequence is import, first comes, first join</span>
+        <span class="keyword">for</span> w <span class="keyword">in</span> self._workers:
+            w.join()
+</pre></td></tr></table></figure>
+
+<p>OK, let&#39;s talk about <em>task</em></p>
+<ul>
+<li><code>task</code> is a function accept only one parameter <code>obj</code></li>
+<li><code>task</code> can return a <code>obj</code>, which will be passed to next step in the pipeline<ul>
+<li>return <code>None</code> means discard, and won&#39;t be passed to next.</li>
+</ul>
+</li>
+<li>here is the example<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">task1</span><span class="params">(obj)</span>:</span>
+    result, processed = handle(obj)
+    <span class="keyword">if</span> result <span class="keyword">is</span> <span class="string">'good'</span>:
+        <span class="keyword">return</span> processed
+    <span class="keyword">elif</span> result <span class="keyword">is</span> <span class="string">'bad'</span>:
+        <span class="keyword">return</span> <span class="keyword">None</span>
+</pre></td></tr></table></figure>
+
+</li>
+</ul>
+<p>Finally, here is a full example to use this pipeline</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">download</span><span class="params">(obj)</span>:</span>
+	url = obj
+	fpath = do_download(url)
+	<span class="keyword">return</span> (url, fpath)
+
+<span class="function"><span class="keyword">def</span> <span class="title">check</span><span class="params">(obj)</span>:</span>
+	url, fpath = obj
+	valid = check_valid(fpath)
+	<span class="keyword">if</span> valid:
+		<span class="keyword">return</span> fpath
+	<span class="keyword">else</span>:  <span class="comment"># discard</span>
+		<span class="keyword">return</span> <span class="keyword">None</span>
+
+<span class="function"><span class="keyword">def</span> <span class="title">parse</span><span class="params">(obj)</span>:</span>
+	fpath = obj
+	result = parse_file(fpath)
+	save_result(result)
+
+pipeline = Pipeline()
+pipeline.add_step(download)
+pipeline.add_step(check)
+pipeline.add_step(parse)
+
+pipeline.start()  <span class="comment"># start pipeline</span>
+<span class="keyword">for</span> url <span class="keyword">in</span> urls:
+	pipeline.feed(url)
+pipeline.join()  <span class="comment"># wait for all task done</span>
+</pre></td></tr></table></figure>
+
+<p>More thoughts for enhancement:</p>
+<ul>
+<li>Get the final results for each input product</li>
+<li>What if one steps have more than 1 workers?</li>
+<li>Replace python <code>thread</code>, using <code>multiprocessing</code> or <code>gevent</code></li>
+<li>What if each step only have limited resource for pending products</li>
+<li>Statictics info about the pipeline, step, workers</li>
+</ul>
+]]></content>
+    <summary type="html"><![CDATA[<blockquote>
+<p>Pipeline framework like assembly line in manufactory.</p>
+</blockquote>
+<p>Image that:</p>
+<ul>
+<li>A kind product consists of several steps to produce</li>
+<li>Each step only has one worker<ul>
+<li>A worker can only handle one step</li>
+<li>A worker can&#39;t work in parallel, must handle one by one.</li>
+<li>Once the worker finished this step, he pass the product to next worker(step)</li>
+</ul>
+</li>
+<li>There are a great number of product for manufactorying.<ul>
+<li>In order to improve efficiency, each woker must be in full load.</li>
+</ul>
+</li>
+</ul>
+<p>]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Falcon: Django-like urlreverse router]]></title>
+    <link href="http://oneyoung.im/2016/02/15/falcon-django-like-urlreverse-router/"/>
+    <id>http://oneyoung.im/2016/02/15/falcon-django-like-urlreverse-router/</id>
+    <published>2016-02-15T02:06:22.000Z</published>
+    <updated>2016-05-04T06:15:58.000Z</updated>
+    <content type="html"><![CDATA[<p>The default <a href="http://falcon.readthedocs.org/en/latest/api/routing.html" target="_blank">Falcon router</a> don&#39;t support urlreverse,
+but fortunately it allows us to use a costomized router.</p>
+<p>Override the <code>add_route</code>, adding a aditional params <code>name</code> to specified url template name.</p>
+<blockquote>
+<p>Note: Falcon version should <code>&gt;=0.4</code> to support this feature.</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre><span class="keyword">from</span> falcon.routing <span class="keyword">import</span> DefaultRouter
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">ReverseRouter</span><span class="params">(DefaultRouter)</span>:</span>
+    url_map = {}
+
+    <span class="comment"># override add_route to add our map</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">add_route</span><span class="params">(self, uri_template, method_map, resource, name=None)</span>:</span>
+        <span class="keyword">if</span> name:
+            self.url_map[name] = uri_template
+        DefaultRouter.add_route(self, uri_template, method_map, resource)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">reverse</span><span class="params">(self, _name, **kwargs)</span>:</span>
+        <span class="string">'''
+        reverse url
+        '''</span>
+        <span class="keyword">assert</span> _name <span class="keyword">in</span> self.url_map, <span class="string">"url name: %s not in url map"</span> % _name
+        url_tmpl = self.url_map.get(_name)
+        <span class="keyword">return</span> url_tmpl.format(**kwargs)
+</pre></td></tr></table></figure>
+
+<a id="more"></a>
+
+<p>then, we can use <code>reverse</code> method to do a Django-like url reverse, here is an example:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre></td><td class="code"><pre><span class="preprocessor"># usage example:</span>
+import falcon  # NOQA
+
+router = ReverseRouter()
+api = falcon.API(router=router)
+<span class="preprocessor"># add a router</span>
+api.add_route(<span class="string">'/user/{name}'</span>, <span class="string">'user_res'</span>, name=<span class="string">'user'</span>)
+
+<span class="preprocessor"># reverse url</span>
+print (router.reverse(<span class="string">'user'</span>, name=<span class="string">'mike'</span>))
+<span class="preprocessor"># /user/mike</span>
+</pre></td></tr></table></figure>
+
+]]></content>
+    <summary type="html"><![CDATA[<p>The default <a href="http://falcon.readthedocs.org/en/latest/api/routing.html" target="_blank">Falcon router</a> don&#39;t support urlreverse,
+but fortunately it allows us to use a costomized router.</p>
+<p>Override the <code>add_route</code>, adding a aditional params <code>name</code> to specified url template name.</p>
+<blockquote>
+<p>Note: Falcon version should <code>&gt;=0.4</code> to support this feature.</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre></td><td class="code"><pre><span class="keyword">from</span> falcon.routing <span class="keyword">import</span> DefaultRouter
+
+
+<span class="class"><span class="keyword">class</span> <span class="title">ReverseRouter</span><span class="params">(DefaultRouter)</span>:</span>
+    url_map = {}
+
+    <span class="comment"># override add_route to add our map</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">add_route</span><span class="params">(self, uri_template, method_map, resource, name=None)</span>:</span>
+        <span class="keyword">if</span> name:
+            self.url_map[name] = uri_template
+        DefaultRouter.add_route(self, uri_template, method_map, resource)
+
+    <span class="function"><span class="keyword">def</span> <span class="title">reverse</span><span class="params">(self, _name, **kwargs)</span>:</span>
+        <span class="string">'''
+        reverse url
+        '''</span>
+        <span class="keyword">assert</span> _name <span class="keyword">in</span> self.url_map, <span class="string">"url name: %s not in url map"</span> % _name
+        url_tmpl = self.url_map.get(_name)
+        <span class="keyword">return</span> url_tmpl.format(**kwargs)
+</pre></td></tr></table></figure>
+
+]]></summary>
+    
+      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
+    
+      <category term="web" scheme="http://oneyoung.im/tags/web/"/>
+    
+      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[OruxMaps 添加 Google Maps (国内源)]]></title>
@@ -4228,416 +4696,6 @@ extra/bash-completion <span class="number">2.1</span>-<span class="number">2</sp
       <category term="bash" scheme="http://oneyoung.im/tags/bash/"/>
     
       <category term="vim" scheme="http://oneyoung.im/tags/vim/"/>
-    
-      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[计算n的阶乘末尾有多少个0]]></title>
-    <link href="http://oneyoung.im/2013/11/28/%E8%AE%A1%E7%AE%97n%E7%9A%84%E9%98%B6%E4%B9%98%E6%9C%AB%E5%B0%BE%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA0/"/>
-    <id>http://oneyoung.im/2013/11/28/计算n的阶乘末尾有多少个0/</id>
-    <published>2013-11-27T19:47:45.000Z</published>
-    <updated>2013-11-27T19:47:45.000Z</updated>
-    <content type="html"><![CDATA[<blockquote>
-<p>计算n的阶乘末尾有多少个0，例如5! = 120 末尾有1个0，10!= 3628800末尾有2个0。</p>
-</blockquote>
-<ul>
-<li>对于一个多因式相乘, 末尾有多少个0, 取决于有多少个10相乘.</li>
-<li>10的倍数也可以为结果贡献0, 比如10, 20, 30, 因此可以记为 P = i * 10</li>
-<li>10可以因式分解成5 <em> 2, 于是 P = i </em> 5 * 2</li>
-<li>对于n!, 共有1 <em> 2 </em> ... * n</li>
-</ul>
-<a id="more"></a>
-
-<p>观察如下满足的P值:</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre>P:	<span class="number">10</span>	<span class="number">20</span>	<span class="number">30</span>	<span class="number">40</span>	<span class="number">50</span>	<span class="keyword">...</span>
-i:	<span class="number">1</span>	<span class="number">2</span>	<span class="number">3</span>	<span class="number">4</span>	<span class="number">5</span>	<span class="keyword">...</span>
-<span class="number">5i</span>:	<span class="number">5</span>	<span class="number">10</span>	<span class="number">15</span>	<span class="number">20</span>	<span class="number">25</span>	<span class="keyword">...</span>
-<span class="number">2</span>:	<span class="number">2</span>	<span class="number">2</span>	<span class="number">2</span>	<span class="number">2</span>	<span class="number">2</span>	<span class="keyword">...</span>
-</pre></td></tr></table></figure>
-
-<p>对于11!来说, 1 <em> 2 </em> ... <em> 5 </em> ... <em> 10 </em> 11, 我们可以取出5和10这两个数, 它们各自只要一个2就可以组成10和20, 于是有2个零.
-也就是说, 对于n!阶乘来说, 只要看int(n / 5)就可以知道乘积末尾有几个零, 因为对于小因子(这里是2)来说, 阶乘前面很容易获得(从1阶乘到5 * i, 前面至少有i个2的倍数)</p>
-<ul>
-<li>还有一个值得注意的是100, 1000这种也是满足P的, 并且, 相比之前, 依次多加一个0: P = i <em> (5 </em> 2)^q 可以贡献q个0. 对于这种情况的处理, 可以采用叠加的方式, int(n / 5) 已经为10 <em> i计入一个0了, int(n / 25) 为100 </em> i再计入一个, 依次类推, 就可以完成计数.</li>
-<li>此算法T(n) = O(log(n))</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">factorial_tail_zeros</span><span class="params">(n)</span>:</span>
-    zeros = <span class="number">0</span>
-    exp = <span class="number">1</span>
-    <span class="keyword">while</span> <span class="number">1</span>:
-        base = <span class="number">5</span> ** exp
-        num = n / base
-        <span class="keyword">if</span> num == <span class="number">0</span>:
-            <span class="keyword">break</span>
-        zeros += num
-        exp += <span class="number">1</span>
-    <span class="keyword">return</span> zeros
-</pre></td></tr></table></figure>
-
-<p>还可以对while循环的除法做一下优化:</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">factorial_tail_zeros</span><span class="params">(n)</span>:</span>
-    <span class="string">''' get num of tail zeros of n! '''</span>
-    zeros = <span class="number">0</span>
-    dividend = n
-    <span class="keyword">while</span> <span class="number">1</span>:
-        dividend = dividend / <span class="number">5</span>
-        <span class="keyword">if</span> dividend == <span class="number">0</span>:
-            <span class="keyword">break</span>
-        zeros += dividend
-    <span class="keyword">return</span> zeros
-</pre></td></tr></table></figure>
-
-<h5 id="-n-">扩展到任意N进制.</h5>
-<ul>
-<li>套用前面的分析, 我们假设有个熊孩子闲的蛋疼, 用了变态的6进制, P = i <em> 2 </em> 3. 因此, 只需考虑最大的因子3, 将上面函数5换成3即可.</li>
-<li>对于2进制, 很简单, 最大因子就是2; 那对于16进制来说呢? 我们可以先算出2进制下的0个数, 然后在除以4就行了(16 = 2 ^ 4). 直接用16算反而会出问题, 因为不是质数, 4 * 4 也可以满足.</li>
-<li>好了, 对于24进制, P = i <em> 3 </em> (2 <em> 2 </em> 2) = i <em> 3 </em> 8, 取8为因子, 先算出2进制0个数, 最后, 除以3就是24进制下末尾0的个数.</li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">factorize</span><span class="params">(n)</span>:</span>
-    <span class="string">''' simple facorize function for small integer '''</span>
-    factors = []
-    num = n
-    <span class="keyword">for</span> i <span class="keyword">in</span> xrange(<span class="number">2</span>, n / <span class="number">2</span> + <span class="number">1</span>):
-        <span class="keyword">if</span> num % i == <span class="number">0</span>:
-            factors.append(i)
-            factors += factorize(num / i)
-            <span class="keyword">break</span>
-    <span class="keyword">if</span> <span class="keyword">not</span> factors:  <span class="comment"># n is prime</span>
-        factors.append(n)
-    <span class="keyword">return</span> factors
-
-
-<span class="function"><span class="keyword">def</span> <span class="title">factorial_tail_zeros_nbase</span><span class="params">(n, base=<span class="number">10</span>)</span>:</span>
-    base_factors = factorize(base)
-    factors_map = {}  <span class="comment"># {factor: pow} map</span>
-    <span class="keyword">for</span> f <span class="keyword">in</span> base_factors:
-        factors_map[f] = factors_map.get(f, <span class="number">0</span>) + <span class="number">1</span>
-    <span class="comment"># get the biggest factor</span>
-    max_factor = max(factors_map.keys(), key=<span class="keyword">lambda</span> k: factors_map[k] * k)
-
-    <span class="comment"># get zeros at max_factor</span>
-    zeros = <span class="number">0</span>
-    dividend = n
-    <span class="keyword">while</span> <span class="number">1</span>:
-        dividend = dividend / max_factor
-        <span class="keyword">if</span> dividend == <span class="number">0</span>:
-            <span class="keyword">break</span>
-        zeros += dividend
-
-    <span class="comment"># result should divided by pow of max_factor</span>
-    <span class="keyword">return</span> zeros / factors_map[max_factor]
-</pre></td></tr></table></figure>
-
-]]></content>
-    <summary type="html"><![CDATA[<blockquote>
-<p>计算n的阶乘末尾有多少个0，例如5! = 120 末尾有1个0，10!= 3628800末尾有2个0。</p>
-</blockquote>
-<ul>
-<li>对于一个多因式相乘, 末尾有多少个0, 取决于有多少个10相乘.</li>
-<li>10的倍数也可以为结果贡献0, 比如10, 20, 30, 因此可以记为 P = i * 10</li>
-<li>10可以因式分解成5 <em> 2, 于是 P = i </em> 5 * 2</li>
-<li>对于n!, 共有1 <em> 2 </em> ... * n</li>
-</ul>
-]]></summary>
-    
-      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
-    
-      <category term="algrithms" scheme="http://oneyoung.im/tags/algrithms/"/>
-    
-      <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[operator module 加速简单函数]]></title>
-    <link href="http://oneyoung.im/2013/10/25/%5Bpython%5D-operator-module-%E5%8A%A0%E9%80%9F%E7%AE%80%E5%8D%95%E5%87%BD%E6%95%B0/"/>
-    <id>http://oneyoung.im/2013/10/25/[python]-operator-module-加速简单函数/</id>
-    <published>2013-10-25T00:44:42.000Z</published>
-    <updated>2013-11-28T00:44:07.000Z</updated>
-    <content type="html"><![CDATA[<p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
-    <span class="keyword">return</span> x + y
-</pre></td></tr></table></figure>
-
-<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
-<h4 id="-lambda-">与lambda对比测试</h4>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
-<span class="number">0.17214393615722656</span>
-<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
-<span class="number">0.11670303344726562</span>
-</pre></td></tr></table></figure>
-
-<p>单个函数看, 有30%的效率提升.</p>
-<a id="more"></a>
-
-<h4 id="-">应用场景</h4>
-<p>operator可以应用在iter进行大量迭代计算时候使用(比如map, filter, reduce等), 这种情况下使用lambda进行简单的计算, 比如简单的&quot;+&quot;操作, 用函数会有比较大的性能损失.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-</pre></td><td class="code"><pre><span class="keyword">from</span> profiler <span class="keyword">import</span> Timer
-<span class="keyword">import</span> operator
-
-
-<span class="keyword">with</span> Timer(<span class="keyword">True</span>):
-    l = xrange(<span class="number">1000000</span>)
-    reduce(<span class="keyword">lambda</span> x, y: x + y, l)
-
-
-<span class="keyword">with</span> Timer(<span class="keyword">True</span>):
-    l = xrange(<span class="number">1000000</span>)
-    reduce(operator.add, l)
-</pre></td></tr></table></figure>
-
-<p>运行结果如下, 效率可以提升超过一倍.</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre>elapsed <span class="built_in">time</span>: <span class="number">133.429050</span> ms
-elapsed <span class="built_in">time</span>: <span class="number">57.756186</span> ms
-</pre></td></tr></table></figure>
-
-<p><code>profiler.Timer</code>如下定义:</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-</pre></td><td class="code"><pre><span class="comment"># profiler.py</span>
-<span class="keyword">import</span> time
-
-
-<span class="class"><span class="keyword">class</span> <span class="title">Timer</span><span class="params">(object)</span>:</span>
-    <span class="string">''' a timer to record code excution time
-
-    example:
-        with Timer() as t:
-            test_func()
-        print "=&gt; elasped lpush: %s s" % t.secs
-    '''</span>
-    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, verbose=False)</span>:</span>
-        self.verbose = verbose
-
-    <span class="function"><span class="keyword">def</span> <span class="title">__enter__</span><span class="params">(self)</span>:</span>
-        self.start = time.time()
-        <span class="keyword">return</span> self
-
-    <span class="function"><span class="keyword">def</span> <span class="title">__exit__</span><span class="params">(self, *args)</span>:</span>
-        self.end = time.time()
-        self.secs = self.end - self.start
-        self.msecs = self.secs * <span class="number">1000</span>  <span class="comment"># millisecs</span>
-        <span class="keyword">if</span> self.verbose:
-            <span class="keyword">print</span> <span class="string">'elapsed time: %f ms'</span> % self.msecs
-</pre></td></tr></table></figure>
-
-<h4 id="python2-7-">Python2.7的实现</h4>
-<p>operator 的各类操作是在<code>Modules/operator.c</code>里定义的, 还是以<code>add</code>为栗子.</p>
-<p><code>operator.add</code>就是以CPython实现的, 本质上就是对<code>PyNumber_Add</code>的一个封装.</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-</pre></td><td class="code"><pre><span class="comment">/* Modules/operator.c */</span>
-<span class="comment">/* 这个宏做了一个函数封装 */</span>
-<span class="preprocessor">#define spam2(OP,AOP) static PyObject *OP(PyObject *s, PyObject *a) { \</span>
-  PyObject *a1, *a2; \
-    <span class="keyword">if</span>(! PyArg_UnpackTuple(a,<span class="preprocessor">#OP,2,2,&a1,&a2)) return NULL; \</span>
-		  <span class="keyword">return</span> AOP(a1,a2); }
-...
-spam2(op_add           , PyNumber_Add)
-...
-
-<span class="preprocessor">#undef spam2</span>
-<span class="preprocessor">#define spam2(OP,ALTOP,DOC) {#OP, op_##OP, METH_VARARGS, PyDoc_STR(DOC)}, \</span>
-                           {<span class="preprocessor">#ALTOP, op_##OP, METH_VARARGS, PyDoc_STR(DOC)},</span>
-
-<span class="keyword">struct</span> PyMethodDef operator_methods[] = {
-	...
-	<span class="comment">/* 这里PyMethodDef.ml_meth 就是"op_add", 也就是先前定义的'spam2(op_add, PyNumber_Add)' */</span>
-	spam2(add,__add__, <span class="string">"add(a, b) -- Same as a + b."</span>)
-	...
-}
-
-PyMODINIT_FUNC
-initoperator(<span class="keyword">void</span>)  <span class="comment">// operator module 初始化代码</span>
-{
-	PyObject *m;
-
-		<span class="comment">/* Create the module and add the functions */</span>
-		<span class="comment">/* 将operator_methods绑定到operator module */</span>
-			m = Py_InitModule4(<span class="string">"operator"</span>, operator_methods, operator_doc,
-						   (PyObject*)NULL, PYTHON_API_VERSION);
-	...
-}
-</pre></td></tr></table></figure>
-
-<p><code>PyMethodDef</code>的定义如下:</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9
-</pre></td><td class="code"><pre><span class="comment">/* Include/methodobject.h */</span>
-<span class="keyword">struct</span> PyMethodDef {
-    <span class="keyword">const</span> <span class="keyword">char</span>	*ml_name;	<span class="comment">/* The name of the built-in function/method */</span>
-    PyCFunction  ml_meth;	<span class="comment">/* The C function that implements it */</span>
-    <span class="keyword">int</span>		 ml_flags;	<span class="comment">/* Combination of METH_xxx flags, which mostly
-				   describe the args expected by the C func */</span>
-    <span class="keyword">const</span> <span class="keyword">char</span>	*ml_doc;	<span class="comment">/* The __doc__ attribute, or NULL */</span>
-};
-<span class="keyword">typedef</span> <span class="keyword">struct</span> PyMethodDef PyMethodDef;
-</pre></td></tr></table></figure>
-
-]]></content>
-    <summary type="html"><![CDATA[<p>众所周知Python function call的开销比较大, function函数可以获得比较好的封装性, 但是如果只是进行简单的操作, 比如像下面一样, 只把两个数相加, 可能得不偿失.</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-</pre></td><td class="code"><pre><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(x, y)</span>:</span>
-    <span class="keyword">return</span> x + y
-</pre></td></tr></table></figure>
-
-<p>而<code>operator</code> module定义了一组function, 可以对简单的操作符进行封装；它是以C实现的, 直接调用C函数, 省去了function call的开销. 以下只用&quot;+&quot; 操作符作为栗子, 其他的可以查询<a href="http://docs.python.org/2/library/operator.html" target="_blank">文档</a>.</p>
-<h4 id="-lambda-">与lambda对比测试</h4>
-<figure class="highlight python"><table><tr><td class="gutter"><pre>1
-2
-3
-4
-</pre></td><td class="code"><pre><span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = lambda x, y: x + y'</span>)
-<span class="number">0.17214393615722656</span>
-<span class="prompt">&gt;&gt;&gt; </span>timeit(<span class="string">'add(1, 1)'</span>, <span class="string">'add = __import__("operator").add'</span>)
-<span class="number">0.11670303344726562</span>
-</pre></td></tr></table></figure>
-
-<p>单个函数看, 有30%的效率提升.</p>
-]]></summary>
-    
-      <category term="python" scheme="http://oneyoung.im/tags/python/"/>
     
       <category term="Tech" scheme="http://oneyoung.im/categories/Tech/"/>
     
